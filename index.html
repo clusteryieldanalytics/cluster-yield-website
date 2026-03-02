@@ -531,12 +531,12 @@ footer a:hover { color: var(--text); }
         <p>A free static analysis tool that catches common PySpark anti-patterns before they reach production. No Spark runtime required — runs on source code in CI, pre-commit, or your terminal.</p>
         <p>Detects <code>.collect()</code> without filtering, <code>.withColumn()</code> in loops, <code>SELECT *</code>, implicit cartesians, and more. New rules shipping regularly.</p>
         <p style="margin-top: 16px;">
-          <a href="https://pypi.org/project/cluster-yield/" class="hero-cta" style="font-size: 13px; padding: 10px 20px; display: inline-flex;">pip install cluster-yield</a>
-          <a href="https://github.com/clusteryield/cluster-yield" class="hero-secondary" style="font-size: 13px; padding: 10px 20px; display: inline-flex; margin-left: 8px;">GitHub</a>
+          <a href="https://pypi.org/project/cylint/" class="hero-cta" style="font-size: 13px; padding: 10px 20px; display: inline-flex;">pip install cluster-yield</a>
+          <a href="https://github.com/clusteryieldanalytics/cylint" class="hero-secondary" style="font-size: 13px; padding: 10px 20px; display: inline-flex; margin-left: 8px;">GitHub</a>
         </p>
       </div>
       <div class="cli-demo">
-        <div><span class="prompt">$</span> <span class="cmd">pip install cluster-yield</span></div>
+        <div><span class="prompt">$</span> <span class="cmd">pip install cylint</span></div>
         <div><span class="prompt">$</span> <span class="cmd">cy lint src/</span></div>
         <br>
         <div class="finding-line">src/orders.py:14  CY001  .collect() on unfiltered DataFrame</div>
@@ -573,7 +573,7 @@ footer a:hover { color: var(--text); }
     <div class="cta-inner">
       <h2>Ready to find out what your Spark workloads are actually costing you?</h2>
       <p>The free triage takes five minutes to set up. We'll tell you if there's money to save.</p>
-      <a href="mailto:hello@clusteryield.com" class="cta-email">hello@clusteryield.com</a>
+      <a href="mailto:hello@clusteryield.app" class="cta-email">hello@clusteryield.app</a>
     </div>
   </div>
 </section>
