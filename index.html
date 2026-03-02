@@ -156,38 +156,94 @@ h2 {
   border-bottom: 1px solid var(--border);
 }
 .findings-intro { max-width: 640px; margin-bottom: 40px; }
-.finding {
-  background: var(--bg-raised); border: 1px solid var(--border);
-  border-radius: 10px; padding: 0; margin-bottom: 12px;
-  overflow: hidden;
+
+/* — Report Preview — */
+.report {
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: 10px; padding: 32px;
+  font-size: 14px; line-height: 1.7; overflow: hidden;
 }
-.finding-header {
-  display: flex; align-items: flex-start; justify-content: space-between;
-  padding: 22px 28px;
-  gap: 20px;
+.report-header {
+  font-size: 20px; font-weight: 700;
+  color: var(--heading); margin-bottom: 12px;
 }
-.finding-severity {
-  font-family: var(--mono); font-size: 11px; font-weight: 600;
-  letter-spacing: 0.05em; text-transform: uppercase;
-  padding: 3px 8px; border-radius: 4px;
-  white-space: nowrap; flex-shrink: 0;
+.report-badges {
+  display: flex; gap: 12px; margin-bottom: 28px; font-size: 14px;
 }
-.finding-severity.critical { color: var(--red); background: var(--red-dim); }
-.finding-severity.warning { color: var(--amber); background: var(--amber-dim); }
-.finding-body { flex: 1; }
-.finding-title {
-  font-size: 15px; font-weight: 600; color: var(--text-bright);
-  margin-bottom: 6px; line-height: 1.4;
+.report-badges .badge-critical { color: var(--red); }
+.report-badges .badge-warning { color: var(--amber); }
+.report hr {
+  border: none; border-top: 1px solid var(--border); margin: 24px 0;
 }
-.finding-desc {
-  font-size: 13.5px; color: var(--text-dim); line-height: 1.55;
+.report-finding { margin-bottom: 4px; }
+.report-finding-title {
+  font-size: 15px; font-weight: 600; color: var(--heading);
+  margin-bottom: 8px; line-height: 1.45;
 }
-.finding-savings {
-  font-family: var(--mono); font-size: 14px; font-weight: 600;
-  white-space: nowrap; flex-shrink: 0;
+.report-finding-title code, .report-finding-desc code {
+  font-family: var(--mono); font-size: 13px;
+  background: rgba(59,130,246,0.08); color: var(--accent);
+  padding: 1px 5px; border-radius: 3px;
 }
-.finding-savings.high { color: var(--green); }
-.finding-savings.med { color: var(--amber); }
+.report-finding-savings {
+  font-size: 14px; font-weight: 600; color: var(--green);
+  margin-bottom: 12px;
+}
+.report-finding-desc {
+  color: var(--text); margin-bottom: 16px;
+  font-size: 14px; line-height: 1.65;
+}
+.report-rec-label {
+  font-weight: 600; color: var(--text-bright);
+  margin-bottom: 8px; font-size: 14px;
+}
+.report-code {
+  background: var(--bg); border: 1px solid var(--border);
+  border-radius: 6px; padding: 14px 18px;
+  font-family: var(--mono); font-size: 13px; line-height: 1.65;
+  color: var(--text); overflow-x: auto;
+  margin: 8px 0 16px; white-space: pre;
+}
+.report details { margin-bottom: 4px; }
+.report details summary {
+  font-size: 13px; color: var(--text-dim);
+  cursor: pointer; user-select: none;
+}
+.report details summary:hover { color: var(--text); }
+.report-meta-table {
+  width: 100%; margin-top: 8px;
+  font-family: var(--mono); font-size: 12px; border-collapse: collapse;
+}
+.report-meta-table td {
+  padding: 4px 12px 4px 0; color: var(--text-dim);
+  border-bottom: 1px solid var(--border);
+}
+.report-meta-table td:first-child { color: var(--text); white-space: nowrap; }
+.report-savings-table {
+  width: 100%; font-size: 13px; border-collapse: collapse;
+  font-family: var(--mono); margin-bottom: 4px;
+}
+.report-savings-table th {
+  text-align: left; padding: 8px 12px;
+  border-bottom: 2px solid var(--border-light);
+  color: var(--text-dim); font-weight: 500;
+}
+.report-savings-table th:last-child { text-align: right; }
+.report-savings-table td {
+  padding: 8px 12px; border-bottom: 1px solid var(--border); color: var(--text);
+}
+.report-savings-table td:last-child {
+  text-align: right; color: var(--green); font-weight: 600;
+}
+.report-savings-table tr.total td {
+  border-top: 2px solid var(--border-light); border-bottom: none;
+  font-weight: 700; color: var(--heading);
+}
+.report-savings-table tr.total td:last-child { color: var(--green); }
+.report-footer {
+  font-size: 13px; color: var(--text-dim);
+  font-style: italic; margin-top: 16px; line-height: 1.7;
+}
 
 /* — How it Works — */
 .how {
@@ -357,8 +413,8 @@ footer a:hover { color: var(--text); }
   .step:last-child { border-bottom: none; }
   .engage-grid { grid-template-columns: 1fr; }
   .oss-block { grid-template-columns: 1fr; }
-  .finding-header { flex-direction: column; gap: 12px; }
-  .finding-savings { align-self: flex-end; }
+  .report { padding: 20px; }
+  .report-code { font-size: 12px; padding: 12px 14px; }
   .hero-buttons { flex-direction: column; }
   .hero-secondary { margin-left: 0; }
   .nav-links .nav-link { display: none; }
@@ -438,39 +494,100 @@ footer a:hover { color: var(--text); }
   <div class="container">
     <h2>What we find</h2>
     <div class="findings-intro">
-      <p>Real output format from our analysis engine. In your report, savings estimates are calibrated to your actual DBU rate, cluster shape, and job frequency — not generic benchmarks.</p>
+      <p>Actual report format from our analysis engine. In your report, savings are calibrated to your DBU rate, cluster shape, and job frequency — not generic benchmarks.</p>
     </div>
 
-    <div class="finding">
-      <div class="finding-header">
-        <div class="finding-body">
-          <span class="finding-severity critical">Critical</span>
-          <div class="finding-title">Full scan on <code>orders</code> (800 GB) — no filter on partition column <code>order_date</code></div>
-          <div class="finding-desc">Spark reads all 365 partitions. Adding a date range filter to align with the partition scheme would prune ~75% of the data.</div>
-        </div>
-        <div class="finding-savings high">~$4,800/mo</div>
+    <div class="report">
+      <div class="report-header">⚡ Cluster Yield CI — Spark Plan Analysis</div>
+      <div class="report-badges">
+        <span class="badge-critical">🔴 <strong>2 critical</strong></span>
+        <span class="badge-warning">🟡 <strong>1 warning</strong></span>
       </div>
-    </div>
 
-    <div class="finding">
-      <div class="finding-header">
-        <div class="finding-body">
-          <span class="finding-severity critical">Critical</span>
-          <div class="finding-title">Missed broadcast: <code>customers</code> (12 MB) joined via SortMergeJoin</div>
-          <div class="finding-desc">Both sides are being shuffled. Broadcasting the small table eliminates the large-side shuffle entirely. The optimizer missed this because catalog statistics are absent.</div>
+      <!-- Finding 1: Partition Pruning -->
+      <div class="report-finding">
+        <div class="report-finding-title">🔴 [daily-revenue-etl] Full scan on <code>prod.analytics.orders</code> — no filter on partition column <code>order_date</code></div>
+        <div class="report-finding-savings">💰 Estimated savings: ~$4,800/month</div>
+        <div class="report-finding-desc">
+          Table <code>prod.analytics.orders</code> is partitioned by <code>order_date</code> but the scan has no partition filters. Spark will read every partition of the table. The full table is 800 GB.<br><br>No filter on <code>order_date</code> was found anywhere in the plan.
         </div>
-        <div class="finding-savings high">~$3,900/mo</div>
+        <div class="report-rec-label">What to do:</div>
+        <pre class="report-code">spark.table("prod.analytics.orders")
+  .filter(col("order_date") >= "2025-01-01")  // enables partition pruning
+  .select(...)</pre>
+        <details>
+          <summary>Raw details</summary>
+          <table class="report-meta-table">
+            <tr><td>tableName</td><td>prod.analytics.orders</td></tr>
+            <tr><td>partitionColumns</td><td>order_date</td></tr>
+            <tr><td>planLabel</td><td>daily-revenue-etl</td></tr>
+          </table>
+        </details>
       </div>
-    </div>
 
-    <div class="finding">
-      <div class="finding-header">
-        <div class="finding-body">
-          <span class="finding-severity warning">Warning</span>
-          <div class="finding-title">Cartesian product: <code>category_stats</code> × <code>category_stats</code></div>
-          <div class="finding-desc">Cross join produces N × M rows. If intentional, add a comment. If not, this is likely a missing join condition.</div>
+      <hr>
+
+      <!-- Finding 2: Broadcast Miss -->
+      <div class="report-finding">
+        <div class="report-finding-title">🔴 [daily-revenue-etl] Missed broadcast: <code>prod.analytics.customers</code> (14.2 MB) in Inner join on <code>customer_id</code></div>
+        <div class="report-finding-savings">💰 Estimated savings: ~$3,200/month</div>
+        <div class="report-finding-desc">
+          The Inner join on <code>customer_id</code> between <code>prod.analytics.orders</code> and <code>prod.analytics.customers</code> is using SortMergeJoin, which shuffles both sides. But the right input (<code>prod.analytics.customers</code>) is only 14.2 MB — small enough to broadcast. Broadcasting eliminates the shuffle on the large side, typically cutting this join's cost by 50% or more.
         </div>
-        <div class="finding-savings med">~$1,200/mo</div>
+        <div class="report-rec-label">What to do:</div>
+        <pre class="report-code">import org.apache.spark.sql.functions.broadcast
+
+// Broadcast the small table (14.2 MB) to avoid a shuffle
+orders.join(broadcast(customers), Seq("customer_id"))</pre>
+        <details>
+          <summary>Raw details</summary>
+          <table class="report-meta-table">
+            <tr><td>planLabel</td><td>daily-revenue-etl</td></tr>
+            <tr><td>estimatedSizeBytes</td><td>14890803</td></tr>
+            <tr><td>side</td><td>right</td></tr>
+          </table>
+        </details>
+      </div>
+
+      <hr>
+
+      <!-- Finding 3: Config Antipattern -->
+      <div class="report-finding">
+        <div class="report-finding-title">🟡 Config: broadcast join threshold set to -1 (disabled)</div>
+        <div class="report-finding-savings">💰 Estimated savings: ~$1,900/month</div>
+        <div class="report-finding-desc">
+          <code>spark.sql.autoBroadcastJoinThreshold</code> is set to <code>-1</code>, which disables automatic broadcast joins entirely. Every join that could use a cheap broadcast will fall back to a shuffle-based strategy instead. This is affecting 4 joins across 3 plans.
+        </div>
+        <div class="report-rec-label">What to do:</div>
+        <pre class="report-code">spark.conf.set("spark.sql.autoBroadcastJoinThreshold", 10485760)  // restore default (10 MB)</pre>
+        <details>
+          <summary>Raw details</summary>
+          <table class="report-meta-table">
+            <tr><td>subtype</td><td>broadcast-disabled</td></tr>
+            <tr><td>configKey</td><td>spark.sql.autoBroadcastJoinThreshold</td></tr>
+            <tr><td>configValue</td><td>-1</td></tr>
+          </table>
+        </details>
+      </div>
+
+      <hr>
+
+      <!-- Savings Breakdown -->
+      <div class="report-finding-title">💰 Savings Breakdown</div>
+      <table class="report-savings-table">
+        <thead>
+          <tr><th>Plan</th><th>Est. Monthly Savings</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>daily-revenue-etl</td><td>$8,000.00</td></tr>
+          <tr><td>weekly-agg-reports</td><td>$1,900.00</td></tr>
+          <tr class="total"><td>Total</td><td>$9,900.00</td></tr>
+        </tbody>
+      </table>
+
+      <div class="report-footer">
+        Total monthly cost across 12 plans: <strong style="color: var(--text-bright)">$34,200.00</strong> (confidence: high)<br>
+        Cluster Yield CI — analyzed 847 plan nodes with 5 detectors | Spark 3.5.1, Databricks 14.3 LTS.
       </div>
     </div>
   </div>
