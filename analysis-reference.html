@@ -194,7 +194,6 @@
   <a href="#column-pruning"><span class="dot dot-snap"></span><span class="rid" style="min-width:50px">SNAP</span>Column pruning</a>
   <a href="#partition-pruning"><span class="dot dot-snap"></span><span class="rid" style="min-width:50px">SNAP</span>Partition pruning</a>
   <a href="#format-detect"><span class="dot dot-snap"></span><span class="rid" style="min-width:50px">SNAP</span>Format detection</a>
-  <a href="#window-func"><span class="dot dot-snap"></span><span class="rid" style="min-width:50px">SNAP</span>Window functions</a>
   <a href="#config-anti"><span class="dot dot-snap"></span><span class="rid" style="min-width:50px">SNAP</span>Config anti-patterns</a>
   <a href="#plan-regression"><span class="dot dot-snap"></span><span class="rid" style="min-width:50px">SNAP</span>Plan regression</a>
 </nav>
@@ -218,7 +217,7 @@
     <div class="tier-card tier-free">
       <span class="tier-tag">Free</span>
       <h3>Linter</h3>
-      <p>Static analysis of PySpark source code. Catches 15 anti-patterns. No cluster, no account. <code>pip install cylint && cy lint src/</code></p>
+      <p>Static analysis of PySpark source code. Catches 15 anti-patterns. No cluster, no account. <code>pip install cylint</code></p>
     </div>
     <div class="tier-card tier-paid">
       <span class="tier-tag">Snapshot</span>
@@ -230,6 +229,14 @@
       <h3>Enriched CI</h3>
       <p>Combines linter + snapshot in your PR workflow. Cost-annotated PR comments. Change-specific cost deltas.</p>
     </div>
+  </div>
+
+  <!-- How savings are calculated -->
+  <div style="background:var(--card);border-radius:10px;padding:20px;border:1px solid var(--border);margin-bottom:32px">
+    <h3 class="sh" style="margin-top:0">How savings are calculated</h3>
+    <p class="desc" style="margin-bottom:0">
+      When multiple findings target the same table or operator, the cost engine applies them in priority order and recomputes after each step. This ensures the total savings never exceeds the plan's actual cost — no double-counting, even when the linter and snapshot both flag the same scan.
+    </p>
   </div>
 
   <!-- Rules injected by JS -->
@@ -282,8 +289,8 @@ const RULES = [
     ],
     refs:[ {t:"Databricks",txt:"Spark Knowledge Base — \"Don't copy all elements of a large RDD to the driver\"",u:"https://databricks.gitbooks.io/databricks-spark-knowledge-base/content/best_practices/dont_call_collect_on_a_very_large_rdd.html"} ]
   },
-  { id:"CY002", name:"UDF Where Builtin Exists", sev:"warning", cost:"money", trend:"declining", t1:4.9, t4:4.1, ratio:0.84,
-    desc:'PySpark UDFs serialize data from the JVM to a Python process and back for every batch. When an equivalent builtin exists (e.g., <code>F.col(...).cast(\'float\')</code> instead of <code>udf(float)</code>), the builtin runs entirely in the JVM — 10–100× faster.',
+  { id:"CY002", name:"UDF Where Builtin Exists", sev:"warning", cost:"reliability", trend:"declining", t1:4.9, t4:4.1, ratio:0.84,
+    desc:'PySpark UDFs serialize data from the JVM to a Python process and back for every batch. When an equivalent builtin exists (e.g., <code>F.col(...).cast(\'float\')</code> instead of <code>udf(float)</code>), the builtin runs entirely in the JVM — 10–100× faster. Dollar amounts are not currently computed for this rule; the impact is CPU time and job duration, not scan/shuffle cost.',
     bad:'<span class="c"># ❌ UDF for something builtins handle</span>\nto_float = udf(<span class="k">lambda</span> x: float(x), FloatType())\ndf = df.withColumn(<span class="s">"amount"</span>, to_float(col(<span class="s">"amount_str"</span>)))',
     good:'<span class="c"># ✅ Use builtin cast — stays in JVM</span>\ndf = df.withColumn(<span class="s">"amount"</span>, col(<span class="s">"amount_str"</span>).cast(<span class="s">"float"</span>))',
     fix:'Replace the UDF with the equivalent builtin. Common: <code>int()</code> → <code>.cast(\'int\')</code>, <code>float()</code> → <code>.cast(\'float\')</code>, <code>str.upper()</code> → <code>F.upper()</code>, <code>len()</code> → <code>F.length()</code>.',
@@ -316,10 +323,10 @@ const RULES = [
     bad:'<span class="c"># ❌ Reads all 50 columns from Parquet</span>\ndf = spark.sql(<span class="s">"SELECT * FROM orders"</span>)',
     good:'<span class="c"># ✅ Column pruning — Parquet skips unread columns</span>\ndf = spark.sql(<span class="s">"SELECT order_id, amount, date FROM orders"</span>)',
     fix:'Specify only the columns your query uses.',
-    snap_detector: "column-pruning",
+    snap_pair: "column-pruning",
     ladder: [
       { tier:"linter", label:"Linter (free)", output:'<span class="loc">pipeline.py:31:0:</span> CY004 [info] SQL query uses SELECT *. Specify only needed columns to enable column pruning.' },
-      { tier:"snap", label:"With Snapshot", output:'<span class="loc">pipeline.py:31:0:</span> CY004 [info] SELECT * on <code>orders</code>\n  Reading <span class="hl">47 of 50 columns</span> (94% excess). Parquet can skip unread columns.\n  Table: orders (800GB, 30 runs/month)\n  Estimated savings: <span class="hl">~$3,200/month</span>' },
+      { tier:"snap", label:"With Snapshot", output:'<span class="loc">pipeline.py:31:0:</span> CY004 [info] SELECT * on <code>orders</code>\n  Reading <span class="hl">47 of 50 columns</span> (94% excess)\n  Table: orders (800GB, 30 runs/month)\n  Estimated savings: <span class="hl">~$3,200/month</span>' },
       { tier:"ci", label:"Enriched CI", output:'<span class="c">── PR Comment ──────────────────────────</span>\n💰 CY004 · SELECT * on orders · <span class="hl">$3,200/month</span>\n   Reading 47 of 50 columns (94% excess)\n   Fix: specify only order_id, amount, date' },
     ],
     refs:[
@@ -357,7 +364,7 @@ const RULES = [
     bad:'<span class="c"># ❌ Cartesian product — O(n×m) output</span>\nresult = users.join(events)  <span class="c"># no join condition</span>',
     good:'<span class="c"># ✅ Add a join condition</span>\nresult = users.join(events, on=<span class="s">"user_id"</span>, how=<span class="s">"inner"</span>)',
     fix:'Add an <code>on</code> parameter. If intentional, confirm input sizes are bounded and add <code># cy:ignore CY007</code>.',
-    snap_detector: "cartesian-product",
+    snap_pair: "cartesian-product",
     ladder: [
       { tier:"linter", label:"Linter (free)", output:'<span class="loc">pipeline.py:52:8:</span> CY007 [critical] Cross join detected. Produces rows_left × rows_right output rows.' },
       { tier:"snap", label:"With Snapshot", output:'<span class="loc">pipeline.py:52:8:</span> CY007 [critical] Cross join on <code>users × events</code>\n  Left: <span class="hl">users (50K rows, 2.4KB)</span>\n  Right: <span class="hl">events (2B rows, 1.8TB)</span>\n  Output: ~100T rows. Estimated cost: <span class="hl">~$47,000/month</span>' },
@@ -386,7 +393,7 @@ const RULES = [
     bad:'<span class="c"># ❌ UDF blocks predicate pushdown</span>\nis_recent = udf(<span class="k">lambda</span> d: d > <span class="s">"2025-01-01"</span>, BooleanType())\ndf.filter(is_recent(col(<span class="s">"date"</span>)))  <span class="c"># scans ALL partitions</span>',
     good:'<span class="c"># ✅ Builtin — Catalyst pushes to scan</span>\ndf.filter(col(<span class="s">"date"</span>) > <span class="s">"2025-01-01"</span>)  <span class="c"># reads matching partitions only</span>',
     fix:'Rewrite using builtin PySpark functions so Catalyst can push the predicate.',
-    snap_detector: "partition-pruning",
+    snap_pair: "partition-pruning",
     ladder: [
       { tier:"linter", label:"Linter (free)", output:'<span class="loc">pipeline.py:47:0:</span> CY009 [critical] UDF in .filter() blocks predicate pushdown. Full table scan required.' },
       { tier:"snap", label:"With Snapshot", output:'<span class="loc">pipeline.py:47:0:</span> CY009 [critical] UDF blocks pushdown on <code>orders</code>\n  Table: <span class="hl">orders (800GB, partitioned by date, 365 partitions)</span>\n  UDF forces full scan. With pushdown, 30-day filter reads ~66GB (8%).\n  Estimated savings: <span class="hl">~$4,200/month</span>' },
@@ -464,7 +471,7 @@ const RULES = [
     bad:'<span class="c"># ❌ Range condition — O(n×m) comparisons</span>\nresult = df.join(other, df[<span class="s">"ts"</span>] > other[<span class="s">"start"</span>])\n<span class="c"># also: df.join(other, F.lit(True))</span>',
     good:'<span class="c"># ✅ Equi-join with range filter after</span>\nresult = df.join(other, df[<span class="s">"id"</span>] == other[<span class="s">"id"</span>]).filter(\n    df[<span class="s">"ts"</span>] > other[<span class="s">"start"</span>]\n)',
     fix:'Include at least one equality condition in the join. If a range join is required, consider a bucketed or sorted merge approach.',
-    snap_detector: "cartesian-product",
+    snap_pair: "cartesian-product",
     ladder: [
       { tier:"linter", label:"Linter (free)", output:'<span class="loc">pipeline.py:55:0:</span> CY015 [critical] .join() uses a non-equi condition. Produces O(n×m) row comparisons — equivalent to a cross join.' },
       { tier:"snap", label:"With Snapshot", output:'<span class="loc">pipeline.py:55:0:</span> CY015 [critical] Non-equi join on <code>orders × events</code>\n  Left: <span class="hl">orders (120GB)</span>, Right: <span class="hl">events (1.8TB)</span>\n  Cartesian cost: <span class="hl">~$34,000/month</span>' },
@@ -534,10 +541,10 @@ RULES.forEach(r => {
     ladderHtml = '<h3 class="sh">What You See</h3><div class="ladder">' +
       r.ladder.map(l => `<div class="ladder-step ${tierMap[l.tier]}"><div class="ladder-label ${labelMap[l.tier]}">${l.label}</div><div class="ladder-output">${l.output}</div></div>`).join('') +
       '</div>';
-    if (r.snap_detector) {
-      ladderHtml += `<div class="cta-box"><p><strong>Snapshot analyzer:</strong> When connected to your cluster, the <a href="#${r.snap_detector}" style="color:var(--accent)">${r.snap_detector}</a> detector provides precise plan-level data and dollar amounts for this pattern. The linter flags the source code; the snapshot quantifies the cost.</p></div>`;
+    if (r.snap_pair) {
+      ladderHtml += `<div class="cta-box"><p>The <a href="#${r.snap_pair}" style="color:var(--accent)">${r.snap_pair}</a> snapshot analyzer also targets this pattern from the physical plan, providing precise data from your production environment.</p></div>`;
     } else if (r.ladder.some(l => l.tier === 'snap') && !r.ladder.some(l => l.label.includes('context only'))) {
-      ladderHtml += '<div class="cta-box"><p><strong>Snapshot enrichment:</strong> When connected to your cluster, this finding is enriched with production table sizes and dollar amounts from the cost waterfall.</p></div>';
+      ladderHtml += '<div class="cta-box"><p>With a snapshot connected, this finding is enriched with production table sizes and dollar amounts.</p></div>';
     }
   }
 
@@ -558,7 +565,7 @@ RULES.forEach(r => {
       <span class="badge ${sevMap[r.sev]}">${r.sev}</span>
       <span class="badge ${costMap[r.cost]}">${r.cost}</span>
       <span class="badge ${trendCls}">${trendLabel}</span>
-      ${r.snap_detector ? '<span class="badge b-snap">+ snapshot</span>' : ''}
+      ${r.snap_pair ? '<span class="badge b-snap">+ snapshot</span>' : ''}
     </div>
     <div class="desc">${r.desc}</div>
     <h3 class="sh">Anti-Pattern</h3><pre>${r.bad}</pre>
