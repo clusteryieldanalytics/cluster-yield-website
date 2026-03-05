@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cluster Yield — Analysis Reference</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap');
+  :root {
+    --bg: #0f172a; --sidebar-bg: #162032; --card: #1e293b; --card-alt: #162032;
+    --border: #334155; --border-light: rgba(51,65,85,0.4);
+    --text: #e2e8f0; --text-muted: #94a3b8; --text-dim: #64748b;
+    --accent: #38bdf8; --accent-hover: rgba(56,189,248,0.12); --accent-bg: rgba(56,189,248,0.08);
+    --red: #f87171; --red-bg: rgba(220,38,38,0.12); --red-border: rgba(220,38,38,0.3);
+    --amber: #fbbf24; --amber-bg: rgba(251,191,36,0.12); --amber-border: rgba(251,191,36,0.3);
+    --green: #34d399; --green-bg: rgba(5,150,105,0.12); --green-border: rgba(5,150,105,0.3);
+    --purple: #a78bfa; --purple-bg: rgba(139,92,246,0.12); --purple-border: rgba(139,92,246,0.3);
+    --mono: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+    --sans: 'Inter', system-ui, -apple-system, sans-serif;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { scroll-behavior: smooth; scroll-padding-top: 24px; }
+  body { font-family: var(--sans); color: var(--text); background: var(--bg); line-height: 1.6; }
+
+  .layout { display: flex; min-height: 100vh; }
+
+  /* Sidebar */
+  .sidebar {
+    width: 290px; background: var(--sidebar-bg); border-right: 1px solid var(--border);
+    padding: 24px 0; position: sticky; top: 0; height: 100vh; overflow-y: auto; flex-shrink: 0;
+  }
+  .sidebar::-webkit-scrollbar { width: 5px; }
+  .sidebar::-webkit-scrollbar-track { background: transparent; }
+  .sidebar::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  .sidebar-brand { padding: 0 20px 20px; border-bottom: 1px solid var(--border); margin-bottom: 12px; }
+  .sidebar-brand h1 { font-family: var(--mono); font-size: 15px; font-weight: 800; color: var(--text); letter-spacing: -0.03em; }
+  .sidebar-brand p { font-size: 11px; color: var(--text-dim); margin-top: 2px; }
+
+  .sidebar-section { padding: 12px 20px 4px; font-size: 10px; font-weight: 700; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.1em; }
+  .sidebar a {
+    display: flex; align-items: center; gap: 8px; padding: 5px 20px; font-size: 12px;
+    color: var(--text-muted); text-decoration: none; transition: all 0.15s;
+  }
+  .sidebar a:hover { color: var(--accent); background: var(--accent-hover); }
+  .sidebar .rid { font-family: var(--mono); font-weight: 600; font-size: 10px; min-width: 42px; color: var(--text-dim); }
+  .sidebar .dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+  .sidebar .dot-crit { background: var(--red); }
+  .sidebar .dot-warn { background: var(--amber); }
+  .sidebar .dot-info { background: var(--green); }
+  .sidebar .dot-snap { background: var(--accent); }
+
+  /* Main */
+  .main { flex: 1; padding: 32px 48px; max-width: 900px; }
+
+  .page-header { margin-bottom: 32px; }
+  .page-header-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+  .page-header-bar { width: 4px; height: 28px; background: var(--accent); border-radius: 2px; }
+  .page-header h1 { font-size: 24px; font-weight: 800; font-family: var(--mono); letter-spacing: -0.03em; }
+  .page-sub { font-size: 14px; color: var(--text-muted); line-height: 1.7; }
+  .page-sub code { font-family: var(--mono); background: var(--card); padding: 2px 6px; border-radius: 4px; font-size: 12px; color: var(--accent); border: 1px solid var(--border); }
+
+  /* Tier overview */
+  .tier-overview { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 24px 0 40px; }
+  .tier-card { border-radius: 10px; padding: 16px; border: 1px solid var(--border); }
+  .tier-card h3 { font-size: 13px; font-weight: 700; margin-bottom: 4px; font-family: var(--mono); }
+  .tier-card p { font-size: 12px; color: var(--text-muted); line-height: 1.5; }
+  .tier-card .tier-tag { display: inline-block; font-size: 9px; font-weight: 700; padding: 2px 7px; border-radius: 8px; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.06em; }
+  .tier-free { background: var(--green-bg); border-color: var(--green-border); }
+  .tier-free .tier-tag { background: var(--green-bg); color: var(--green); border: 1px solid var(--green-border); }
+  .tier-free h3 { color: var(--green); }
+  .tier-paid { background: var(--accent-bg); border-color: rgba(56,189,248,0.25); }
+  .tier-paid .tier-tag { background: var(--accent-bg); color: var(--accent); border: 1px solid rgba(56,189,248,0.3); }
+  .tier-paid h3 { color: var(--accent); }
+  .tier-premium { background: var(--purple-bg); border-color: var(--purple-border); }
+  .tier-premium .tier-tag { background: var(--purple-bg); color: var(--purple); border: 1px solid var(--purple-border); }
+  .tier-premium h3 { color: var(--purple); }
+
+  /* Rule sections */
+  .rule-section { margin-bottom: 48px; padding-bottom: 32px; border-bottom: 1px solid var(--border); }
+  .rule-section:last-child { border-bottom: none; }
+  .rule-header { display: flex; align-items: baseline; gap: 12px; margin-bottom: 4px; flex-wrap: wrap; }
+  .rule-header h2 { font-size: 20px; font-weight: 700; font-family: var(--mono); letter-spacing: -0.02em; color: var(--accent); }
+  .rule-header .short { font-size: 14px; color: var(--text-muted); }
+  .meta { display: flex; gap: 6px; margin-bottom: 16px; flex-wrap: wrap; }
+  .badge { display: inline-flex; align-items: center; gap: 4px; padding: 2px 9px; border-radius: 10px; font-size: 10px; font-weight: 600; }
+  .b-crit { background: var(--red-bg); color: var(--red); border: 1px solid var(--red-border); }
+  .b-warn { background: var(--amber-bg); color: var(--amber); border: 1px solid var(--amber-border); }
+  .b-info { background: var(--green-bg); color: var(--green); border: 1px solid var(--green-border); }
+  .b-money { background: var(--amber-bg); color: var(--amber); border: 1px solid var(--amber-border); }
+  .b-rel { background: var(--red-bg); color: var(--red); border: 1px solid var(--red-border); }
+  .b-clarity { background: var(--purple-bg); color: var(--purple); border: 1px solid var(--purple-border); }
+  .b-rise { background: var(--red-bg); color: var(--red); border: 1px solid var(--red-border); }
+  .b-fall { background: var(--green-bg); color: var(--green); border: 1px solid var(--green-border); }
+  .b-snap { background: var(--accent-bg); color: var(--accent); border: 1px solid rgba(56,189,248,0.3); }
+
+  .desc { font-size: 14px; color: var(--text-muted); margin-bottom: 16px; line-height: 1.7; }
+  .desc code { font-family: var(--mono); background: var(--card); padding: 1px 5px; border-radius: 3px; font-size: 12px; color: var(--accent); border: 1px solid var(--border); }
+
+  h3.sh { font-size: 11px; font-weight: 700; margin: 20px 0 8px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.08em; }
+
+  pre { background: var(--card); color: var(--text); padding: 14px 18px; border-radius: 8px; font-family: var(--mono); font-size: 12px; line-height: 1.6; overflow-x: auto; margin-bottom: 10px; border: 1px solid var(--border); }
+  pre .c { color: var(--text-dim); }
+  pre .k { color: var(--accent); }
+  pre .s { color: var(--green); }
+  pre .n { color: var(--amber); }
+  pre .v { color: var(--text); }
+
+  .fix { background: var(--green-bg); border: 1px solid var(--green-border); border-radius: 8px; padding: 10px 14px; margin-bottom: 10px; }
+  .fix-t { font-size: 11px; font-weight: 700; color: var(--green); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 4px; }
+  .fix div { font-size: 12px; color: var(--text-muted); }
+  .fix code { font-family: var(--mono); color: var(--green); font-size: 11px; }
+
+  /* Depth ladder */
+  .ladder { margin: 16px 0; display: flex; flex-direction: column; gap: 0; }
+  .ladder-step { padding: 14px 16px; border: 1px solid var(--border); position: relative; }
+  .ladder-step:first-child { border-radius: 8px 8px 0 0; }
+  .ladder-step:last-child { border-radius: 0 0 8px 8px; }
+  .ladder-step:not(:first-child) { border-top: none; }
+  .ladder-step-free { background: var(--card); }
+  .ladder-step-snap { background: rgba(56,189,248,0.04); }
+  .ladder-step-ci { background: rgba(139,92,246,0.04); }
+  .ladder-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 4px; }
+  .ladder-label-free { color: var(--green); }
+  .ladder-label-snap { color: var(--accent); }
+  .ladder-label-ci { color: var(--purple); }
+  .ladder-output { font-family: var(--mono); font-size: 12px; color: var(--text-muted); line-height: 1.6; }
+  .ladder-output .hl { color: var(--amber); font-weight: 600; }
+  .ladder-output .loc { color: var(--text-dim); }
+
+  /* Refs */
+  .refs ul { list-style: none; padding: 0; }
+  .refs li { padding: 4px 0; font-size: 12px; color: var(--text-muted); border-bottom: 1px solid var(--border-light); }
+  .refs li:last-child { border-bottom: none; }
+  .refs li a { color: var(--accent); text-decoration: none; }
+  .refs li a:hover { text-decoration: underline; }
+  .refs .rt { font-family: var(--mono); font-size: 9px; font-weight: 600; color: var(--text-dim); background: var(--sidebar-bg); padding: 1px 6px; border-radius: 3px; margin-right: 5px; border: 1px solid var(--border); }
+
+  /* Corpus bars */
+  .corpus { margin-top: 10px; }
+  .crow { display: flex; align-items: center; gap: 8px; margin-bottom: 3px; }
+  .clbl { font-size: 10px; font-family: var(--mono); color: var(--text-dim); width: 70px; text-align: right; }
+  .ctrk { flex: 1; height: 14px; background: var(--border-light); border-radius: 3px; overflow: hidden; max-width: 260px; }
+  .cfill { height: 100%; border-radius: 3px; }
+  .cpct { font-size: 10px; font-family: var(--mono); font-weight: 600; min-width: 38px; color: var(--text); }
+
+  /* Section divider */
+  .section-divider { margin: 48px 0 32px; padding: 20px 0; border-top: 2px solid var(--border); }
+  .section-divider h2 { font-size: 22px; font-weight: 800; font-family: var(--mono); letter-spacing: -0.03em; color: var(--accent); margin-bottom: 6px; }
+  .section-divider p { font-size: 14px; color: var(--text-muted); line-height: 1.6; }
+
+  /* CTA box */
+  .cta-box { background: var(--accent-bg); border: 1px solid rgba(56,189,248,0.25); border-radius: 10px; padding: 20px; margin: 20px 0; }
+  .cta-box p { font-size: 13px; color: var(--text-muted); line-height: 1.6; }
+  .cta-box code { font-family: var(--mono); color: var(--accent); font-size: 12px; }
+  .cta-box strong { color: var(--text); }
+
+  @media (max-width: 900px) { .sidebar { display: none; } .main { padding: 20px; } .tier-overview { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar">
+  <div class="sidebar-brand">
+    <h1>Cluster Yield</h1>
+    <p>Analysis Reference</p>
+  </div>
+
+  <div class="sidebar-section">Linter — Tier 1</div>
+  <a href="#CY001"><span class="dot dot-warn"></span><span class="rid">CY001</span>.collect() unfiltered</a>
+  <a href="#CY002"><span class="dot dot-warn"></span><span class="rid">CY002</span>UDF w/ builtin</a>
+  <a href="#CY003"><span class="dot dot-crit"></span><span class="rid">CY003</span>.withColumn() loop</a>
+  <a href="#CY004"><span class="dot dot-info"></span><span class="rid">CY004</span>SELECT *</a>
+  <a href="#CY005"><span class="dot dot-warn"></span><span class="rid">CY005</span>Single-use .cache()</a>
+  <a href="#CY006"><span class="dot dot-warn"></span><span class="rid">CY006</span>.toPandas() unfiltered</a>
+  <a href="#CY007"><span class="dot dot-crit"></span><span class="rid">CY007</span>Cross join</a>
+  <a href="#CY008"><span class="dot dot-info"></span><span class="rid">CY008</span>.repartition() → write</a>
+
+  <div class="sidebar-section">Linter — Tier 2</div>
+  <a href="#CY009"><span class="dot dot-crit"></span><span class="rid">CY009</span>UDF in .filter()</a>
+  <a href="#CY010"><span class="dot dot-warn"></span><span class="rid">CY010</span>Join w/o explicit how</a>
+  <a href="#CY011"><span class="dot dot-warn"></span><span class="rid">CY011</span>Column ops in loop</a>
+  <a href="#CY012"><span class="dot dot-warn"></span><span class="rid">CY012</span>.show() in prod</a>
+  <a href="#CY013"><span class="dot dot-warn"></span><span class="rid">CY013</span>.coalesce(1)</a>
+  <a href="#CY014"><span class="dot dot-crit"></span><span class="rid">CY014</span>Repeated actions</a>
+  <a href="#CY015"><span class="dot dot-crit"></span><span class="rid">CY015</span>Non-equi join</a>
+
+  <div class="sidebar-section">General</div>
+  <a href="#suppression"><span class="dot" style="background:var(--text-dim)"></span><span class="rid" style="min-width:42px"></span>Inline suppression</a>
+  <a href="#CY016-note"><span class="dot dot-info"></span><span class="rid">CY016</span>Escape sequences</a>
+
+  <div class="sidebar-section">Snapshot Analyzers</div>
+  <a href="#broadcast-miss"><span class="dot dot-snap"></span><span class="rid" style="min-width:50px">SNAP</span>Broadcast miss</a>
+  <a href="#column-pruning"><span class="dot dot-snap"></span><span class="rid" style="min-width:50px">SNAP</span>Column pruning</a>
+  <a href="#partition-pruning"><span class="dot dot-snap"></span><span class="rid" style="min-width:50px">SNAP</span>Partition pruning</a>
+  <a href="#format-detect"><span class="dot dot-snap"></span><span class="rid" style="min-width:50px">SNAP</span>Format detection</a>
+  <a href="#window-func"><span class="dot dot-snap"></span><span class="rid" style="min-width:50px">SNAP</span>Window functions</a>
+  <a href="#config-anti"><span class="dot dot-snap"></span><span class="rid" style="min-width:50px">SNAP</span>Config anti-patterns</a>
+  <a href="#plan-regression"><span class="dot dot-snap"></span><span class="rid" style="min-width:50px">SNAP</span>Plan regression</a>
+</nav>
+
+<main class="main">
+  <!-- Header -->
+  <div class="page-header">
+    <div class="page-header-row">
+      <div class="page-header-bar"></div>
+      <h1>Analysis Reference</h1>
+    </div>
+    <p class="page-sub">
+      Cluster Yield catches cost, reliability, and clarity problems across three analysis tiers.
+      The linter runs locally for free. The snapshot adds dollar amounts from your production environment.
+      Enriched CI ties it all together in your PR workflow.
+    </p>
+  </div>
+
+  <!-- Tier overview -->
+  <div class="tier-overview">
+    <div class="tier-card tier-free">
+      <span class="tier-tag">Free</span>
+      <h3>Linter</h3>
+      <p>Static analysis of PySpark source code. Catches 15 anti-patterns. No cluster, no account. <code>pip install cylint && cy lint src/</code></p>
+    </div>
+    <div class="tier-card tier-paid">
+      <span class="tier-tag">Snapshot</span>
+      <h3>Plan Analysis</h3>
+      <p>Analyzes query plans from your production cluster. Adds dollar amounts, detects plan-level problems the linter can't see.</p>
+    </div>
+    <div class="tier-card tier-premium">
+      <span class="tier-tag">CI Integration</span>
+      <h3>Enriched CI</h3>
+      <p>Combines linter + snapshot in your PR workflow. Cost-annotated PR comments. Change-specific cost deltas.</p>
+    </div>
+  </div>
+
+  <!-- Rules injected by JS -->
+  <div id="rules-container"></div>
+
+  <!-- Suppression section -->
+  <div class="rule-section" id="suppression" style="background:var(--card);border-radius:10px;padding:24px;border:1px solid var(--border)">
+    <div class="rule-header"><h2 style="color:var(--text)">Inline Suppression</h2></div>
+    <div class="desc">Suppress individual findings with a comment on the same line or a block suppression around multiple lines.</div>
+    <pre><span class="c"># Single-line suppression</span>
+df.collect()  <span class="c"># cy:ignore CY001 — intentional, result set is small</span>
+
+<span class="c"># Block suppression</span>
+<span class="c"># cy:ignore-start CY001</span>
+result = df.collect()
+process(result)
+<span class="c"># cy:ignore-end</span></pre>
+    <div class="desc" style="margin-top:8px">The reason after the <code>—</code> is optional but recommended. It documents why the suppression is intentional and survives code review.</div>
+  </div>
+
+  <!-- CY016 note -->
+  <div class="rule-section" id="CY016-note" style="background:var(--card);border-radius:10px;padding:24px;border:1px solid var(--border);margin-top:24px">
+    <div class="rule-header"><h2 style="color:var(--text-dim)">CY016</h2><span class="short">Invalid Escape Sequences</span></div>
+    <div class="meta"><span class="badge b-info">info</span><span class="badge b-clarity">clarity</span></div>
+    <div class="desc">The linter also detects Python invalid escape sequences in regex strings (e.g., <code>'\w'</code> instead of <code>'\\w'</code> or <code>r'\w'</code>). This is a general Python hygiene rule, not a Spark-specific anti-pattern, and is excluded from the Spark analysis reference. It appears in linter output but is not included in corpus prevalence analysis or blog reporting.</div>
+  </div>
+
+  <!-- Snapshot-only section -->
+  <div class="section-divider" id="snapshot-only-section">
+    <h2>Snapshot-Only Analyzers</h2>
+    <p>These problems require runtime context — table sizes, cluster config, query plan structure — that static analysis can't access. They only appear with a snapshot capture from your production cluster.</p>
+  </div>
+  <div id="snapshot-container"></div>
+
+</main>
+</div>
+
+<script>
+const BS = 40; // bar scale max %
+
+const RULES = [
+  { id:"CY001", name:".collect() on Unfiltered DataFrame", sev:"warning", cost:"reliability", trend:"declining", t1:14.2, t4:7.2, ratio:0.51,
+    desc:'Calling <code>.collect()</code> without prior filtering pulls the entire distributed dataset to the driver JVM heap, causing OutOfMemoryError.',
+    bad:'<span class="c"># ❌ Pulls entire table to driver memory</span>\ndf = spark.table(<span class="s">"orders"</span>)       <span class="c"># 800GB</span>\nresults = df.collect()              <span class="c"># driver OOM</span>',
+    good:'<span class="c"># ✅ Filter or limit before collecting</span>\nresults = df.filter(col(<span class="s">"date"</span>) > <span class="s">"2025-01-01"</span>).collect()\n<span class="c"># or: df.limit(1000).collect()</span>',
+    fix:'Add <code>.filter()</code>, <code>.limit()</code>, or <code>.agg()</code> before <code>.collect()</code>.',
+    ladder: [
+      { tier:"linter", label:"Linter (free)", output:'<span class="loc">pipeline.py:47:8:</span> CY001 [warning] .collect() called without filtering. This pulls all data to the driver.' },
+      { tier:"snap", label:"With Snapshot (context only — no $ estimate)", output:'<span class="loc">pipeline.py:47:8:</span> CY001 [warning] .collect() on <code>orders</code>\n  Table: <span class="hl">orders (800GB, partitioned by date, 365 partitions)</span>\n  Pulls 800GB to driver memory. Driver OOM virtually guaranteed.' },
+    ],
+    refs:[ {t:"Databricks",txt:"Spark Knowledge Base — \"Don't copy all elements of a large RDD to the driver\"",u:"https://databricks.gitbooks.io/databricks-spark-knowledge-base/content/best_practices/dont_call_collect_on_a_very_large_rdd.html"} ]
+  },
+  { id:"CY002", name:"UDF Where Builtin Exists", sev:"warning", cost:"money", trend:"declining", t1:4.9, t4:4.1, ratio:0.84,
+    desc:'PySpark UDFs serialize data from the JVM to a Python process and back for every batch. When an equivalent builtin exists (e.g., <code>F.col(...).cast(\'float\')</code> instead of <code>udf(float)</code>), the builtin runs entirely in the JVM — 10–100× faster.',
+    bad:'<span class="c"># ❌ UDF for something builtins handle</span>\nto_float = udf(<span class="k">lambda</span> x: float(x), FloatType())\ndf = df.withColumn(<span class="s">"amount"</span>, to_float(col(<span class="s">"amount_str"</span>)))',
+    good:'<span class="c"># ✅ Use builtin cast — stays in JVM</span>\ndf = df.withColumn(<span class="s">"amount"</span>, col(<span class="s">"amount_str"</span>).cast(<span class="s">"float"</span>))',
+    fix:'Replace the UDF with the equivalent builtin. Common: <code>int()</code> → <code>.cast(\'int\')</code>, <code>float()</code> → <code>.cast(\'float\')</code>, <code>str.upper()</code> → <code>F.upper()</code>, <code>len()</code> → <code>F.length()</code>.',
+    ladder: [
+      { tier:"linter", label:"Linter (free)", output:'<span class="loc">pipeline.py:15:0:</span> CY002 [warning] UDF uses float() which has a builtin equivalent: F.col(...).cast(\'float\').' },
+    ],
+    refs:[
+      {t:"PySpark",txt:"PySpark UDFs — serialization overhead documented",u:"https://spark.apache.org/docs/latest/api/python/user_guide/sql/python_udtf.html"},
+      {t:"AWS",txt:"AWS Prescriptive Guidance — \"Spark SQL is much faster than UDFs\"",u:"https://docs.aws.amazon.com/prescriptive-guidance/latest/tuning-aws-glue-for-apache-spark/optimize-pyspark.html"},
+    ]
+  },
+  { id:"CY003", name:".withColumn() in a Loop", sev:"critical", cost:"reliability", trend:"rising", t1:17.4, t4:27.8, ratio:1.60,
+    desc:'Each <code>.withColumn()</code> creates a new Project node. In a loop, Catalyst pays O(n²) CPU to collapse them. At 200+ columns, the JVM stack overflows before processing any data.',
+    bad:'<span class="c"># ❌ O(n²) plan complexity</span>\n<span class="k">for</span> c <span class="k">in</span> columns:\n    df = df.withColumn(c, F.trim(F.col(c)))',
+    good:'<span class="c"># ✅ Single .select() — one plan node</span>\ndf = df.select([\n    F.trim(F.col(c)).alias(c) <span class="k">if</span> c <span class="k">in</span> columns <span class="k">else</span> F.col(c)\n    <span class="k">for</span> c <span class="k">in</span> df.columns\n])',
+    fix:'Replace the loop with a single <code>.select()</code> or use <code>.withColumns()</code> (Spark 3.3+).',
+    ladder: [
+      { tier:"linter", label:"Linter (free)", output:'<span class="loc">pipeline.py:23:4:</span> CY003 [critical] .withColumn() inside a loop creates O(n²) plan complexity.' },
+    ],
+    refs:[
+      {t:"PySpark",txt:"Spark API — .withColumn() docstring includes explicit performance warning",u:"https://spark.apache.org/docs/latest/api/python/reference/pyspark.sql/api/pyspark.sql.DataFrame.withColumn.html"},
+      {t:"JIRA",txt:"SPARK-26224 — StackOverflowError at 3,000 columns",u:"https://issues.apache.org/jira/browse/SPARK-26224"},
+      {t:"JIRA",txt:"SPARK-28742 — StackOverflow at 9 iterations with complex expressions",u:"https://issues.apache.org/jira/browse/SPARK-28742"},
+      {t:"Databricks",txt:"Databricks KB — \"WithColumn operation when using in-loop slows performance\"",u:"https://kb.databricks.com/en_US/sql/withcolumn-performance"},
+      {t:"Blog",txt:"Manu Zhang (2018) — ~100ms/call overhead via RuleExecutor",u:"https://medium.com/@manuzhang/the-hidden-cost-of-spark-withcolumn-8ffea517c015"},
+    ]
+  },
+  { id:"CY004", name:"SELECT * in SQL Strings", sev:"info", cost:"money", trend:"declining", t1:11.7, t4:8.2, ratio:0.70,
+    desc:'<code>SELECT *</code> reads all columns. Columnar formats (Parquet) skip unread columns, but only if the plan requests a subset. Extra columns also amplify downstream shuffle, sort, and join costs.',
+    bad:'<span class="c"># ❌ Reads all 50 columns from Parquet</span>\ndf = spark.sql(<span class="s">"SELECT * FROM orders"</span>)',
+    good:'<span class="c"># ✅ Column pruning — Parquet skips unread columns</span>\ndf = spark.sql(<span class="s">"SELECT order_id, amount, date FROM orders"</span>)',
+    fix:'Specify only the columns your query uses.',
+    snap_detector: "column-pruning",
+    ladder: [
+      { tier:"linter", label:"Linter (free)", output:'<span class="loc">pipeline.py:31:0:</span> CY004 [info] SQL query uses SELECT *. Specify only needed columns to enable column pruning.' },
+      { tier:"snap", label:"With Snapshot", output:'<span class="loc">pipeline.py:31:0:</span> CY004 [info] SELECT * on <code>orders</code>\n  Reading <span class="hl">47 of 50 columns</span> (94% excess). Parquet can skip unread columns.\n  Table: orders (800GB, 30 runs/month)\n  Estimated savings: <span class="hl">~$3,200/month</span>' },
+      { tier:"ci", label:"Enriched CI", output:'<span class="c">── PR Comment ──────────────────────────</span>\n💰 CY004 · SELECT * on orders · <span class="hl">$3,200/month</span>\n   Reading 47 of 50 columns (94% excess)\n   Fix: specify only order_id, amount, date' },
+    ],
+    refs:[
+      {t:"Research",txt:"CERN Databases Blog — \"Diving into Spark and Parquet Workloads\" (column pruning measured)",u:"https://db-blog.web.cern.ch/node/187"},
+      {t:"Blog",txt:"SparkCodeHub — Spark Column Pruning mechanism",u:"https://sparkcodehub.com/spark-column-pruning"},
+    ]
+  },
+  { id:"CY005", name:"Single-Use .cache()", sev:"warning", cost:"clarity", trend:"declining", t1:2.0, t4:1.0, ratio:0.50,
+    desc:'<code>.cache()</code> stores the DataFrame in executor memory. If the DataFrame is only used once after caching, the memory is consumed for zero benefit — there is no recomputation to avoid.',
+    bad:'<span class="c"># ❌ Cache used only once — wastes memory</span>\ndf = spark.table(<span class="s">"orders"</span>).cache()\ndf.write.parquet(<span class="s">"s3://output"</span>)',
+    good:'<span class="c"># ✅ No cache needed for single use</span>\ndf = spark.table(<span class="s">"orders"</span>)\ndf.write.parquet(<span class="s">"s3://output"</span>)\n<span class="c"># Cache when multiple actions: df.cache(); df.count(); df.write...</span>',
+    fix:'Remove <code>.cache()</code> if the DataFrame has only one downstream action. Reserve caching for DataFrames with multiple actions.',
+    ladder: [
+      { tier:"linter", label:"Linter (free)", output:'<span class="loc">pipeline.py:34:0:</span> CY005 [warning] Cached DataFrame \'orders_df\' is only used 1 time after caching. Remove .cache() to free executor memory.' },
+    ],
+    refs:[
+      {t:"PySpark",txt:"PySpark API — DataFrame.cache()",u:"https://spark.apache.org/docs/latest/api/python/reference/pyspark.sql/api/pyspark.sql.DataFrame.cache.html"},
+    ]
+  },
+  { id:"CY006", name:".toPandas() on Unfiltered DataFrame", sev:"warning", cost:"reliability", trend:"declining", t1:11.7, t4:6.2, ratio:0.53,
+    desc:'Same mechanism as CY001 — collects the entire distributed dataset to the driver as a Pandas DataFrame. Arguably worse because Pandas has higher per-row memory overhead than a Python list (column metadata, index, type casting).',
+    bad:'<span class="c"># ❌ Collects 2TB to driver as Pandas</span>\npdf = spark.table(<span class="s">"events"</span>).toPandas()',
+    good:'<span class="c"># ✅ Filter or aggregate first</span>\npdf = spark.table(<span class="s">"events"</span>).filter(\n    col(<span class="s">"date"</span>) == <span class="s">"2025-03-01"</span>\n).toPandas()',
+    fix:'Apply <code>.filter()</code>, <code>.limit()</code>, or <code>.agg()</code> before <code>.toPandas()</code>. If the full dataset is needed in Pandas, the data is too large for single-node processing.',
+    ladder: [
+      { tier:"linter", label:"Linter (free)", output:'<span class="loc">pipeline.py:56:0:</span> CY006 [warning] .toPandas() called on a DataFrame without filtering or aggregation. This collects all data to the driver.' },
+      { tier:"snap", label:"With Snapshot (context only — no $ estimate)", output:'<span class="loc">pipeline.py:56:0:</span> CY006 [warning] .toPandas() on <code>events</code>\n  Table: <span class="hl">events (2TB)</span>\n  Collects 2TB to driver memory. Driver OOM virtually guaranteed.' },
+    ],
+    refs:[
+      {t:"Databricks",txt:"Same sources as CY001 — .toPandas() listed alongside .collect() as top OOM cause",u:"https://databricks.gitbooks.io/databricks-spark-knowledge-base/content/best_practices/dont_call_collect_on_a_very_large_rdd.html"},
+    ]
+  },
+  { id:"CY007", name:"Cross Join / No Join Condition", sev:"critical", cost:"money", trend:"rising", t1:5.5, t4:9.3, ratio:1.69,
+    desc:'Cross joins produce <code>rows_left × rows_right</code> output rows. This rule flags both explicit <code>.crossJoin()</code> and <code>.join()</code> with no <code>on</code> parameter. Many are intentional — the linter\'s job is verification, not prohibition.',
+    bad:'<span class="c"># ❌ Cartesian product — O(n×m) output</span>\nresult = users.join(events)  <span class="c"># no join condition</span>',
+    good:'<span class="c"># ✅ Add a join condition</span>\nresult = users.join(events, on=<span class="s">"user_id"</span>, how=<span class="s">"inner"</span>)',
+    fix:'Add an <code>on</code> parameter. If intentional, confirm input sizes are bounded and add <code># cy:ignore CY007</code>.',
+    snap_detector: "cartesian-product",
+    ladder: [
+      { tier:"linter", label:"Linter (free)", output:'<span class="loc">pipeline.py:52:8:</span> CY007 [critical] Cross join detected. Produces rows_left × rows_right output rows.' },
+      { tier:"snap", label:"With Snapshot", output:'<span class="loc">pipeline.py:52:8:</span> CY007 [critical] Cross join on <code>users × events</code>\n  Left: <span class="hl">users (50K rows, 2.4KB)</span>\n  Right: <span class="hl">events (2B rows, 1.8TB)</span>\n  Output: ~100T rows. Estimated cost: <span class="hl">~$47,000/month</span>' },
+      { tier:"ci", label:"Enriched CI", output:'<span class="c">── PR Comment ──────────────────────────</span>\n🔴 CY007 · Cross join: users × events · <span class="hl">$47,000/month</span>\n   50K × 2B = ~100T output rows\n   Is this intentional? If so, add # cy:ignore CY007' },
+    ],
+    refs:[
+      {t:"Corpus",txt:"9.3% of production-adjacent projects have at least one cross join. Most are intentional — the risk is inputs growing over time."},
+    ]
+  },
+  { id:"CY008", name:".repartition() Before .write()", sev:"info", cost:"money", trend:"rising", t1:3.6, t4:6.2, ratio:1.72,
+    desc:'<code>.repartition(N)</code> triggers a full shuffle — every row serialized across the network. When the goal is output file count, <code>.coalesce()</code> or <code>maxRecordsPerFile</code> avoid the shuffle.',
+    bad:'<span class="c"># ❌ Full shuffle to control file count</span>\ndf.repartition(<span class="n">10</span>).write.parquet(<span class="s">"s3://output"</span>)',
+    good:'<span class="c"># ✅ Coalesce avoids shuffle</span>\ndf.coalesce(<span class="n">10</span>).write.parquet(<span class="s">"s3://output"</span>)\n<span class="c"># or: .option("maxRecordsPerFile", 1000000)</span>',
+    fix:'Use <code>.coalesce(N)</code> or <code>.option("maxRecordsPerFile", N)</code>.',
+    ladder: [
+      { tier:"linter", label:"Linter (free)", output:'<span class="loc">pipeline.py:89:0:</span> CY008 [info] .repartition() before write triggers a full shuffle.' },
+      { tier:"snap", label:"With Snapshot", output:'<span class="loc">pipeline.py:89:0:</span> CY008 [info] Unnecessary shuffle before write\n  Upstream scan volume: <span class="hl">120GB</span>, 30 runs/month\n  Shuffle cost: <span class="hl">~$1,400/month</span>\n  Fix: replace with .coalesce(10) — saves the full shuffle' },
+    ],
+    refs:[
+      {t:"Benchmark",txt:"Rock the JVM — repartition: 3s, coalesce: 0.1s",u:"https://rockthejvm.com/articles/repartition-vs-coalesce-in-apache-spark"},
+      {t:"Caveat",txt:"DZone — coalesce can be slower when Catalyst pushes it early in the stage",u:"https://dzone.com/articles/when-repartition-beats-coalesce"},
+    ]
+  },
+  { id:"CY009", name:"UDF in .filter() Blocks Pushdown", sev:"critical", cost:"money", trend:"declining", t1:1.8, t4:1.0, ratio:0.56,
+    desc:'A UDF in <code>.filter()</code> prevents Catalyst from pushing the predicate to the scan. On a partitioned table, this forces a full table scan instead of reading only relevant partitions.',
+    bad:'<span class="c"># ❌ UDF blocks predicate pushdown</span>\nis_recent = udf(<span class="k">lambda</span> d: d > <span class="s">"2025-01-01"</span>, BooleanType())\ndf.filter(is_recent(col(<span class="s">"date"</span>)))  <span class="c"># scans ALL partitions</span>',
+    good:'<span class="c"># ✅ Builtin — Catalyst pushes to scan</span>\ndf.filter(col(<span class="s">"date"</span>) > <span class="s">"2025-01-01"</span>)  <span class="c"># reads matching partitions only</span>',
+    fix:'Rewrite using builtin PySpark functions so Catalyst can push the predicate.',
+    snap_detector: "partition-pruning",
+    ladder: [
+      { tier:"linter", label:"Linter (free)", output:'<span class="loc">pipeline.py:47:0:</span> CY009 [critical] UDF in .filter() blocks predicate pushdown. Full table scan required.' },
+      { tier:"snap", label:"With Snapshot", output:'<span class="loc">pipeline.py:47:0:</span> CY009 [critical] UDF blocks pushdown on <code>orders</code>\n  Table: <span class="hl">orders (800GB, partitioned by date, 365 partitions)</span>\n  UDF forces full scan. With pushdown, 30-day filter reads ~66GB (8%).\n  Estimated savings: <span class="hl">~$4,200/month</span>' },
+      { tier:"ci", label:"Enriched CI", output:'<span class="c">── PR Comment ──────────────────────────</span>\n🔴 CY009 · UDF blocks pushdown on orders · <span class="hl">$4,200/month</span>\n   365 partitions, filter reads 30 → full scan wastes 92%\n   Fix: replace UDF with col("date") > "2025-01-01"' },
+    ],
+    refs:[
+      {t:"Blog",txt:"cdelmonte.dev — side-by-side pushdown example with and without UDF",u:"https://cdelmonte.dev"},
+      {t:"GitHub",txt:"Apache Iceberg #4997 — partition filter failure with UDFs",u:"https://github.com/apache/iceberg/issues/4997"},
+    ]
+  },
+  { id:"CY010", name:".join() Without Explicit Join Type", sev:"warning", cost:"clarity", trend:"declining", t1:12.1, t4:5.2, ratio:0.43,
+    desc:'Calling <code>.join(other, on=\'key\')</code> without <code>how=</code> silently defaults to inner join. While often correct, the omission makes intent ambiguous and is a source of subtle bugs when schema migrations introduce nulls that inner join silently drops.',
+    bad:'<span class="c"># ❌ Defaults to inner — is that intentional?</span>\nresult = orders.join(customers, on=<span class="s">"customer_id"</span>)',
+    good:'<span class="c"># ✅ Explicit intent</span>\nresult = orders.join(customers, on=<span class="s">"customer_id"</span>, how=<span class="s">"inner"</span>)',
+    fix:'Add <code>how=\'inner\'</code> (or the appropriate join type) to make intent explicit.',
+    ladder: [
+      { tier:"linter", label:"Linter (free)", output:'<span class="loc">pipeline.py:41:0:</span> CY010 [warning] .join() on \'orders\' has no explicit `how` argument. Defaults to inner join.' },
+    ],
+    refs:[
+      {t:"PySpark",txt:"PySpark API — DataFrame.join() defaults to how=\'inner\'",u:"https://spark.apache.org/docs/latest/api/python/reference/pyspark.sql/api/pyspark.sql.DataFrame.join.html"},
+    ]
+  },
+  { id:"CY011", name:"Column Operations in a Loop", sev:"warning", cost:"reliability", trend:"rising", t1:2.9, t4:4.1, ratio:1.41,
+    desc:'Same mechanism as CY003 — <code>.withColumnRenamed()</code>, <code>.drop()</code>, or other per-column transformations inside a <code>for</code> loop create one plan node per iteration, causing O(n²) Catalyst planning complexity.',
+    bad:'<span class="c"># ❌ One plan node per rename</span>\n<span class="k">for</span> old, new <span class="k">in</span> rename_map.items():\n    df = df.withColumnRenamed(old, new)',
+    good:'<span class="c"># ✅ Single select with all renames</span>\ndf = df.select([\n    F.col(old).alias(new) <span class="k">if</span> old <span class="k">in</span> rename_map <span class="k">else</span> F.col(old)\n    <span class="k">for</span> old <span class="k">in</span> df.columns\n])\n<span class="c"># or (Spark 3.4+): df.withColumnsRenamed(rename_map)</span>',
+    fix:'Collect all transformations and apply in a single <code>.select()</code> or use <code>.withColumnsRenamed()</code> (Spark 3.4+).',
+    ladder: [
+      { tier:"linter", label:"Linter (free)", output:'<span class="loc">pipeline.py:28:4:</span> CY011 [warning] .withColumnRenamed() inside a for loop creates one plan node per iteration.' },
+    ],
+    refs:[
+      {t:"PySpark",txt:"Same Spark API warning as CY003 — applies to all per-column transformations in loops",u:"https://spark.apache.org/docs/latest/api/python/reference/pyspark.sql/api/pyspark.sql.DataFrame.withColumn.html"},
+    ]
+  },
+  { id:"CY012", name:".show() / .display() in Production Code", sev:"warning", cost:"clarity", trend:"declining", t1:37.9, t4:12.4, ratio:0.33,
+    desc:'Debug methods like <code>.show()</code>, <code>.display()</code>, and <code>.printSchema()</code> trigger Spark actions that materialize the full lineage. In production pipelines, this adds unnecessary compute and can mask performance issues.',
+    bad:'<span class="c"># ❌ Debug output left in production pipeline</span>\ndf = spark.table(<span class="s">"orders"</span>).filter(...)\ndf.show()  <span class="c"># triggers full computation</span>\ndf.write.parquet(<span class="s">"s3://output"</span>)',
+    good:'<span class="c"># ✅ Remove debug methods from production</span>\ndf = spark.table(<span class="s">"orders"</span>).filter(...)\ndf.write.parquet(<span class="s">"s3://output"</span>)',
+    fix:'Remove <code>.show()</code>, <code>.display()</code>, and <code>.printSchema()</code> from production code paths.',
+    ladder: [
+      { tier:"linter", label:"Linter (free)", output:'<span class="loc">pipeline.py:73:0:</span> CY012 [warning] .show() on \'final_df\' triggers data collection. Remove from production code.' },
+    ],
+    refs:[
+      {t:"PySpark",txt:"PySpark API — .show() internally calls .take(n+1), triggering a full Spark job",u:"https://spark.apache.org/docs/latest/api/python/reference/pyspark.sql/api/pyspark.sql.DataFrame.show.html"},
+    ]
+  },
+  { id:"CY013", name:".coalesce(1) Before Write", sev:"warning", cost:"reliability", trend:"declining", t1:9.5, t4:5.2, ratio:0.55,
+    desc:'Reducing to a single partition forces all data through one executor task. If the data exceeds that executor\'s memory, the job OOMs. Even when it succeeds, one core does all the work while the cluster sits idle.',
+    bad:'<span class="c"># ❌ All data through one executor</span>\ndf.coalesce(<span class="n">1</span>).write.parquet(<span class="s">"s3://output"</span>)',
+    good:'<span class="c"># ✅ Control file count without bottleneck</span>\ndf.coalesce(<span class="n">10</span>).write.parquet(<span class="s">"s3://output"</span>)\n<span class="c"># or: .option("maxRecordsPerFile", 1000000)</span>',
+    fix:'Use <code>.coalesce(N)</code> where N &gt; 1, or <code>.option(\'maxRecordsPerFile\', N)</code> on the writer. Do not use <code>.repartition()</code> — that triggers a full shuffle (see CY008). If a single file is genuinely required, ensure data fits in executor memory and add <code># cy:ignore CY013</code>.',
+    ladder: [
+      { tier:"linter", label:"Linter (free)", output:'<span class="loc">pipeline.py:95:0:</span> CY013 [warning] .coalesce(1) before write forces all data through a single executor. OOM risk on large DataFrames.' },
+    ],
+    refs:[
+      {t:"Blog",txt:"luminousmen — \"People see coalesce(1) and think \'Nice — one output file.\' Except now you\'ve killed parallelism.\"",u:"https://luminousmen.com/post/spark-tips-partition-tuning"},
+      {t:"Blog",txt:"BigDataPerformance — \"forces the entire dataset to be processed by a single executor\"",u:"https://bigdataperformance.com/mastering-spark-partitioning"},
+    ]
+  },
+  { id:"CY014", name:"Repeated Actions Without .cache()", sev:"critical", cost:"money", trend:"declining", t1:36.6, t4:21.6, ratio:0.59,
+    desc:'Every Spark action recomputes the full lineage from source. Multiple actions on an uncached DataFrame = N full passes over the data.',
+    bad:'<span class="c"># ❌ Three full lineage recomputations</span>\nn = df.count()              <span class="c"># pass 1</span>\nsample = df.take(<span class="n">10</span>)        <span class="c"># pass 2</span>\ndf.write.parquet(<span class="s">"s3://out"</span>) <span class="c"># pass 3</span>',
+    good:'<span class="c"># ✅ Cache before multiple actions</span>\ndf = df.cache()\nn = df.count()              <span class="c"># pass 1 (caches)</span>\nsample = df.take(<span class="n">10</span>)        <span class="c"># from cache</span>\ndf.write.parquet(<span class="s">"s3://out"</span>) <span class="c"># from cache</span>\ndf.unpersist()',
+    fix:'Add <code>.cache()</code> before the first action and <code>.unpersist()</code> when done.',
+    ladder: [
+      { tier:"linter", label:"Linter (free)", output:'<span class="loc">pipeline.py:62:0:</span> CY014 [critical] DataFrame has 3 terminal actions without .cache(). Each recomputes full lineage.' },
+      { tier:"snap", label:"With Snapshot", output:'<span class="loc">pipeline.py:62:0:</span> CY014 [critical] 3 actions without cache\n  Plan cost after other optimizations: <span class="hl">$800/month</span>\n  2 redundant recomputations × $800 = <span class="hl">$1,600/month wasted</span>' },
+    ],
+    refs:[
+      {t:"PySpark",txt:"PySpark — lazy evaluation: transformations build a plan, actions execute it",u:"https://spark.apache.org/docs/latest/rdd-programming-guide.html#rdd-operations"},
+    ]
+  },
+  { id:"CY015", name:"Non-Equi Join (Implicit Cartesian)", sev:"critical", cost:"money", trend:"declining", t1:1.9, t4:0.0, ratio:0.00,
+    desc:'A <code>.join()</code> with a non-equality condition (e.g., <code>df.a > other.b</code>, <code>F.lit(True)</code>) produces O(n×m) row comparisons — equivalent to a cross join but harder to spot because a condition is syntactically present.',
+    bad:'<span class="c"># ❌ Range condition — O(n×m) comparisons</span>\nresult = df.join(other, df[<span class="s">"ts"</span>] > other[<span class="s">"start"</span>])\n<span class="c"># also: df.join(other, F.lit(True))</span>',
+    good:'<span class="c"># ✅ Equi-join with range filter after</span>\nresult = df.join(other, df[<span class="s">"id"</span>] == other[<span class="s">"id"</span>]).filter(\n    df[<span class="s">"ts"</span>] > other[<span class="s">"start"</span>]\n)',
+    fix:'Include at least one equality condition in the join. If a range join is required, consider a bucketed or sorted merge approach.',
+    snap_detector: "cartesian-product",
+    ladder: [
+      { tier:"linter", label:"Linter (free)", output:'<span class="loc">pipeline.py:55:0:</span> CY015 [critical] .join() uses a non-equi condition. Produces O(n×m) row comparisons — equivalent to a cross join.' },
+      { tier:"snap", label:"With Snapshot", output:'<span class="loc">pipeline.py:55:0:</span> CY015 [critical] Non-equi join on <code>orders × events</code>\n  Left: <span class="hl">orders (120GB)</span>, Right: <span class="hl">events (1.8TB)</span>\n  Cartesian cost: <span class="hl">~$34,000/month</span>' },
+    ],
+    refs:[
+      {t:"Note",txt:"A true equi-join (df.id == other.id) does NOT fire. Mixed conditions with at least one == are accepted."},
+      {t:"PySpark",txt:"PySpark API — DataFrame.join()",u:"https://spark.apache.org/docs/latest/api/python/reference/pyspark.sql/api/pyspark.sql.DataFrame.join.html"},
+    ]
+  },
+];
+
+// Snapshot-only detectors
+const SNAP_DETECTORS = [
+  { id:"broadcast-miss", name:"Broadcast Miss Detection", sev:"critical",
+    desc:'Detects SortMergeJoin or ShuffledHashJoin on tables small enough to broadcast. A 2.4KB table joined via SortMergeJoin forces a full shuffle of the large side — broadcasting it would eliminate the shuffle entirely.',
+    output:'🔴 <span class="hl">Missed broadcast</span>: customers (2.4 KB) in Inner SortMergeJoin\n   Large side: orders (120GB)\n   Current strategy: SortMergeJoin → <span class="hl">$4,200/month</span>\n   With BroadcastHashJoin: $300/month\n   Estimated savings: <span class="hl">~$3,900/month</span>',
+    why:"The linter can't detect this because it requires knowing table sizes at runtime. A join on <code>customers</code> looks correct in source code — the anti-pattern is only visible when you see that <code>customers</code> is 2.4KB and should be broadcast.",
+    formula:'<code>savings = (smj_coeff − bhj_coeff) × larger_side_gb × runs/month</code>',
+  },
+  { id:"column-pruning", name:"Column Pruning Detection", sev:"warning",
+    desc:'Detects scans reading significantly more columns than the downstream query requires. The plan-level counterpart to CY004 — provides exact column counts from the physical plan rather than the heuristic SELECT * detection.',
+    output:'⚠️ <span class="hl">Excess columns</span>: orders scan reads 47 of 50 columns (94% excess)\n   ReadSchema: struct&lt;order_id:long,amount:double,...47 fields&gt;\n   Query uses: order_id, amount, date\n   Wasted scan I/O: <span class="hl">~$3,200/month</span>',
+    why:"CY004 catches <code>SELECT *</code> in SQL strings, but many column waste patterns aren't literal SELECT * — they're DataFrames that carry unnecessary columns through joins. The snapshot sees the actual ReadSchema in the physical plan.",
+    formula:'<code>savings = scan_coeff × table_gb × (1 − needed_cols/total_cols) × runs</code>',
+    linter_link: "CY004",
+  },
+  { id:"partition-pruning", name:"Partition Pruning Detection", sev:"warning",
+    desc:'Detects scans on partitioned tables where the plan has no partition filter. On a 365-partition daily table, a missing partition filter reads the entire year instead of just the relevant date range.',
+    output:'⚠️ <span class="hl">Missing partition filter</span>: orders (800GB, date-partitioned, 365 parts)\n   Plan has no PartitionFilter on this scan\n   With 30-day filter: reads ~66GB instead of 800GB\n   Estimated savings: <span class="hl">~$4,800/month</span>',
+    why:"CY009 catches UDFs in filters that <em>block</em> pushdown. But missing partition filters can also happen without UDFs — a query might simply not filter on the partition column. The snapshot sees the PartitionFilters list in the plan.",
+    formula:'<code>savings = scan_coeff × table_gb × (1 − selectivity) × runs</code>',
+    linter_link: "CY009",
+  },
+  { id:"format-detect", name:"Storage Format Detection", sev:"warning",
+    desc:'Detects scans on non-columnar formats (CSV, JSON, text) for tables large enough that format conversion would produce meaningful savings. Columnar formats (Parquet, Delta, ORC) enable column pruning and predicate pushdown.',
+    output:'⚠️ <span class="hl">Non-columnar format</span>: events scanned as CSV (1.2TB)\n   CSV cannot skip columns or push predicates\n   Converting to Parquet with typical 3× compression:\n   Estimated savings: <span class="hl">~$8,400/month</span>',
+    why:"The linter analyzes source code, not storage metadata. It can't know what format a table is stored in — that's only visible from the scan node in the physical plan.",
+    formula:'<code>savings = scan_coeff × table_gb × (1 − 1/compression_ratio) × runs</code>',
+  },
+  { id:"window-func", name:"Window Function Detection", sev:"info",
+    desc:'Detects expensive window functions with full-table frames (unbounded preceding to unbounded following) that force a full sort. Window functions with partition keys limit the sort to within each partition.',
+    output:'ℹ️ <span class="hl">Expensive window</span>: ROW_NUMBER() OVER (ORDER BY ts)\n   Full-table sort (no PARTITION BY) on events (1.8TB)\n   Sort + Window cost: <span class="hl">~$2,100/month</span>\n   Adding PARTITION BY user_id would limit sort scope',
+    why:"The linter can detect window function calls in SQL strings, but can't determine the frame specification or whether a PARTITION BY is present without parsing the full query plan.",
+    formula:'<code>savings = sort_coeff × table_gb × (1 − 1/partition_count) × runs</code>',
+  },
+  { id:"config-anti", name:"Config Anti-Pattern Detection", sev:"critical",
+    desc:'Analyzes the Spark configuration captured with the snapshot. Detects 5 config-level anti-patterns: broadcast joins disabled, AQE disabled, suboptimal shuffle partitions, low broadcast threshold, and skew join disabled. Each produces a dollar amount.',
+    output:'🔴 <span class="hl">Broadcast joins disabled</span> (autoBroadcastJoinThreshold = -1)\n   3 SortMergeJoins on tables &lt; 10MB found\n   Combined savings from enabling broadcast: <span class="hl">~$7,800/month</span>\n\n🟡 <span class="hl">AQE disabled</span> — 3 joins may miss runtime broadcast promotion\n   Estimated exposure: <span class="hl">up to ~$8,200/month</span>',
+    why:"Config settings are invisible to the linter — they're cluster-level, not code-level. The same PySpark code produces radically different plans depending on whether AQE is enabled or broadcast threshold is set to -1.",
+    formula:'Rule-specific. Broadcast: inherited from BroadcastMiss findings. AQE: marginal candidate × SMJ−BHJ delta. Shuffle: spill penalty from partition sizing.',
+  },
+  { id:"plan-regression", name:"Plan Regression / TreeDiff", sev:"critical",
+    desc:'Compares the current snapshot against the previous one. Detects join strategy regressions (BroadcastHashJoin → SortMergeJoin), scan volume increases, and operator changes that increase cost.',
+    output:'🔴 <span class="hl">Join strategy regression</span>: BroadcastHashJoin → SortMergeJoin\n   Tables: orders × customers (join key: customer_id)\n   Previous cost: $300/month → New cost: $4,200/month\n   Regression impact: <span class="hl">+$3,900/month</span>',
+    why:"Regressions happen when catalog stats change, configs drift, or Spark is upgraded. They're invisible in source code — the query didn't change, but the plan did. Only snapshot-to-snapshot comparison can detect this.",
+    formula:'<code>impact = new_plan_cost − old_plan_cost</code>',
+  },
+];
+
+// ── Build linter rules ──
+const rc = document.getElementById('rules-container');
+RULES.forEach(r => {
+  const sevMap = {critical:'b-crit',warning:'b-warn',info:'b-info'};
+  const costMap = {money:'b-money',reliability:'b-rel',clarity:'b-clarity'};
+  const trendCls = r.trend==='rising'?'b-rise':'b-fall';
+  const trendArrow = r.trend==='rising'?'▲':'▼';
+  const trendLabel = r.ratio === 0 ? `${trendArrow} absent in Tier 4` : `${trendArrow} ${r.ratio.toFixed(2)}× ${r.trend}`;
+
+  let ladderHtml = '';
+  if (r.ladder) {
+    const tierMap = {linter:'ladder-step-free', snap:'ladder-step-snap', ci:'ladder-step-ci'};
+    const labelMap = {linter:'ladder-label-free', snap:'ladder-label-snap', ci:'ladder-label-ci'};
+    ladderHtml = '<h3 class="sh">What You See</h3><div class="ladder">' +
+      r.ladder.map(l => `<div class="ladder-step ${tierMap[l.tier]}"><div class="ladder-label ${labelMap[l.tier]}">${l.label}</div><div class="ladder-output">${l.output}</div></div>`).join('') +
+      '</div>';
+    if (r.snap_detector) {
+      ladderHtml += `<div class="cta-box"><p><strong>Snapshot analyzer:</strong> When connected to your cluster, the <a href="#${r.snap_detector}" style="color:var(--accent)">${r.snap_detector}</a> detector provides precise plan-level data and dollar amounts for this pattern. The linter flags the source code; the snapshot quantifies the cost.</p></div>`;
+    } else if (r.ladder.some(l => l.tier === 'snap') && !r.ladder.some(l => l.label.includes('context only'))) {
+      ladderHtml += '<div class="cta-box"><p><strong>Snapshot enrichment:</strong> When connected to your cluster, this finding is enriched with production table sizes and dollar amounts from the cost waterfall.</p></div>';
+    }
+  }
+
+  let refsHtml = '';
+  if (r.refs?.length) {
+    refsHtml = '<h3 class="sh">References</h3><div class="refs"><ul>' +
+      r.refs.map(ref => ref.u
+        ? `<li><span class="rt">${ref.t}</span><a href="${ref.u}" target="_blank">${ref.txt}</a></li>`
+        : `<li><span class="rt">${ref.t}</span>${ref.txt}</li>`
+      ).join('') + '</ul></div>';
+  }
+
+  const el = document.createElement('div');
+  el.className = 'rule-section'; el.id = r.id;
+  el.innerHTML = `
+    <div class="rule-header"><h2>${r.id}</h2><span class="short">${r.name}</span></div>
+    <div class="meta">
+      <span class="badge ${sevMap[r.sev]}">${r.sev}</span>
+      <span class="badge ${costMap[r.cost]}">${r.cost}</span>
+      <span class="badge ${trendCls}">${trendLabel}</span>
+      ${r.snap_detector ? '<span class="badge b-snap">+ snapshot</span>' : ''}
+    </div>
+    <div class="desc">${r.desc}</div>
+    <h3 class="sh">Anti-Pattern</h3><pre>${r.bad}</pre>
+    <div class="fix"><div class="fix-t">Fix</div><div>${r.fix}</div></div>
+    <pre>${r.good}</pre>
+    <h3 class="sh">Prevalence (5,517 repos)</h3>
+    <div class="corpus">
+      <div class="crow"><span class="clbl">Tier 1</span><div class="ctrk"><div class="cfill" style="width:${(r.t1/BS)*100}%;background:var(--text-dim)"></div></div><span class="cpct">${r.t1}%</span></div>
+      <div class="crow"><span class="clbl">Tier 4</span><div class="ctrk"><div class="cfill" style="width:${(r.t4/BS)*100}%;background:${r.trend==='rising'?'#f87171':'#34d399'}"></div></div><span class="cpct">${r.t4}%</span></div>
+    </div>
+    ${ladderHtml}
+    ${refsHtml}
+  `;
+  rc.appendChild(el);
+});
+
+// ── Build snapshot-only detectors ──
+const sc = document.getElementById('snapshot-container');
+SNAP_DETECTORS.forEach(d => {
+  const el = document.createElement('div');
+  el.className = 'rule-section'; el.id = d.id;
+  const linkHtml = d.linter_link ? `<span class="badge b-snap">pairs with <a href="#${d.linter_link}" style="color:var(--accent);text-decoration:none">${d.linter_link}</a></span>` : '';
+
+  el.innerHTML = `
+    <div class="rule-header"><h2 style="color:var(--accent)">${d.name}</h2></div>
+    <div class="meta">
+      <span class="badge b-snap">snapshot only</span>
+      ${linkHtml}
+    </div>
+    <div class="desc">${d.desc}</div>
+    <h3 class="sh">Example Output</h3>
+    <pre>${d.output}</pre>
+    <h3 class="sh">Why the Linter Can't Catch This</h3>
+    <div class="desc">${d.why}</div>
+    <h3 class="sh">Cost Formula</h3>
+    <div class="desc">${d.formula}</div>
+  `;
+  sc.appendChild(el);
+});
+</script>
+</body>
+</html>
