@@ -535,8 +535,8 @@ footer a:hover { color: var(--text); }
     var declining = RULES.filter(function(r) { return r.cls === "declining" && (r.t1 > 5 || r.t4 > 5); });
     var rules = rising.concat(declining);
 
-    var W = 600, H = 380;
-    var PAD = { top: 24, bottom: 24, left: 160, right: 160 };
+    var W = 600, H = 400;
+    var PAD = { top: 44, bottom: 24, left: 160, right: 160 };
     var plotW = W - PAD.left - PAD.right;
     var plotH = H - PAD.top - PAD.bottom;
     var maxVal = Math.max.apply(null, rules.map(function(r) { return Math.max(r.t1, r.t4); }));
