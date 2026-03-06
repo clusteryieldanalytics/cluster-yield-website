@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Corpus Analysis — Cluster Yield</title>
-<meta name="description" content="Analysis of 5,517 PySpark repos — how anti-pattern prevalence changes from hobby code to production.">
+<meta name="description" content="Analysis of 5,046 PySpark repos — how anti-pattern prevalence changes from hobby code to production.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,400;0,500;0,600;0,700&family=JetBrains+Mono:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -313,7 +313,7 @@ footer a:hover { color: var(--text); }
         <div class="dash-accent-bar"></div>
         <h1>Cluster Yield — Corpus Analysis</h1>
       </div>
-      <p>5,517 PySpark repos · 95,101 files · 98,808 findings</p>
+      <p>5,046 PySpark repos · 88,637 files · 86,585 findings</p>
     </div>
 
     <!-- Tabs -->
@@ -331,34 +331,34 @@ footer a:hover { color: var(--text); }
       <div class="stats-grid">
         <div class="stat-card">
           <div class="stat-label">Tier 1 · Learning</div>
-          <div class="stat-value">2,055</div>
+          <div class="stat-value">1,882</div>
           <div class="stat-unit">repos</div>
-          <div class="stat-files">26,350 files</div>
+          <div class="stat-files">24,563 files</div>
         </div>
         <div class="stat-card">
           <div class="stat-label">Tier 2 · Personal</div>
-          <div class="stat-value">2,840</div>
+          <div class="stat-value">2,574</div>
           <div class="stat-unit">repos</div>
-          <div class="stat-files">46,011 files</div>
+          <div class="stat-files">42,198 files</div>
         </div>
         <div class="stat-card">
           <div class="stat-label">Tier 3 · Serious</div>
-          <div class="stat-value">503</div>
+          <div class="stat-value">473</div>
           <div class="stat-unit">repos</div>
-          <div class="stat-files">20,299 files</div>
+          <div class="stat-files">19,457 files</div>
         </div>
         <div class="stat-card">
           <div class="stat-label">Tier 4 · Production</div>
-          <div class="stat-value">97</div>
+          <div class="stat-value">96</div>
           <div class="stat-unit">repos</div>
-          <div class="stat-files">1,878 files</div>
+          <div class="stat-files">1,873 files</div>
         </div>
       </div>
 
       <!-- Bar chart -->
       <div class="card">
         <h2 class="section-title">Chart 1 — Findings per file by tier</h2>
-        <p class="section-sub">Overall code quality improves nearly 6x from hobby to production code. Engineering discipline works.</p>
+        <p class="section-sub">Overall code quality improves 5x from hobby to production code. Engineering discipline works.</p>
         <div class="chart-container" id="density-chart"></div>
       </div>
 
@@ -368,7 +368,7 @@ footer a:hover { color: var(--text); }
         <div class="rising-grid">
           <div class="rising-item">
             <div><span class="rising-item-id">CY003</span><span class="rising-item-name">.withColumn() loop</span></div>
-            <div class="rising-item-range">17.4% → 27.8%</div>
+            <div class="rising-item-range">17.1% → 28.1%</div>
           </div>
           <div class="rising-item">
             <div><span class="rising-item-id">CY008</span><span class="rising-item-name">.repartition() → write</span></div>
@@ -376,11 +376,11 @@ footer a:hover { color: var(--text); }
           </div>
           <div class="rising-item">
             <div><span class="rising-item-id">CY007</span><span class="rising-item-name">Cross join</span></div>
-            <div class="rising-item-range">5.5% → 9.3%</div>
+            <div class="rising-item-range">5.3% → 9.4%</div>
           </div>
           <div class="rising-item">
             <div><span class="rising-item-id">CY011</span><span class="rising-item-name">.withColumnRenamed() loop</span></div>
-            <div class="rising-item-range">2.9% → 4.1%</div>
+            <div class="rising-item-range">2.7% → 4.2%</div>
           </div>
         </div>
       </div>
@@ -433,32 +433,32 @@ footer a:hover { color: var(--text); }
   </div>
 </footer>
 
-<script>
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
 (function() {
   // ── Data ──
   var TIERS = [
-    { tier: 1, label: "Learning", repos: 2055, files: 26350, findings: 33021, density: 1.25 },
-    { tier: 2, label: "Personal", repos: 2840, files: 46011, findings: 54006, density: 1.17 },
-    { tier: 3, label: "Serious", repos: 503, files: 20299, findings: 9410, density: 0.46 },
-    { tier: 4, label: "Production", repos: 97, files: 1878, findings: 418, density: 0.22 }
+    { tier: 1, label: "Learning", repos: 1882, files: 24563, findings: 27477, density: 1.12 },
+    { tier: 2, label: "Personal", repos: 2574, files: 42198, findings: 47980, density: 1.14 },
+    { tier: 3, label: "Serious", repos: 473, files: 19457, findings: 8926, density: 0.46 },
+    { tier: 4, label: "Production", repos: 96, files: 1873, findings: 408, density: 0.22 }
   ];
 
   var RULES = [
-    { id: "CY003", short: ".withColumn() loop", t1: 17.4, t2: 20.6, t3: 37.6, t4: 27.8, ratio: 1.60, cls: "rising", cost: "money" },
-    { id: "CY008", short: ".repartition() \u2192 write", t1: 3.6, t2: 6.1, t3: 8.0, t4: 6.2, ratio: 1.72, cls: "rising", cost: "money" },
-    { id: "CY007", short: "Cross join", t1: 5.5, t2: 5.9, t3: 15.5, t4: 9.3, ratio: 1.69, cls: "rising", cost: "money" },
-    { id: "CY011", short: ".withColumnRenamed() loop", t1: 2.9, t2: 4.6, t3: 5.6, t4: 4.1, ratio: 1.41, cls: "rising", cost: "reliability" },
-    { id: "CY012", short: ".show() in prod", t1: 37.9, t2: 40.5, t3: 28.0, t4: 12.4, ratio: 0.33, cls: "declining", cost: "clarity" },
-    { id: "CY014", short: "Repeated actions", t1: 36.6, t2: 41.0, t3: 34.2, t4: 21.6, ratio: 0.59, cls: "declining", cost: "money" },
-    { id: "CY001", short: ".collect() unfiltered", t1: 14.2, t2: 16.3, t3: 18.9, t4: 7.2, ratio: 0.51, cls: "declining", cost: "reliability" },
-    { id: "CY006", short: ".toPandas() unfiltered", t1: 11.7, t2: 11.6, t3: 12.3, t4: 6.2, ratio: 0.53, cls: "declining", cost: "reliability" },
-    { id: "CY004", short: "SELECT *", t1: 11.7, t2: 14.5, t3: 19.7, t4: 8.2, ratio: 0.70, cls: "declining", cost: "money" },
-    { id: "CY010", short: "Join w/o explicit how", t1: 12.1, t2: 12.0, t3: 10.3, t4: 5.2, ratio: 0.43, cls: "declining", cost: "clarity" },
-    { id: "CY013", short: ".coalesce(1)", t1: 9.5, t2: 8.9, t3: 10.9, t4: 5.2, ratio: 0.55, cls: "declining", cost: "reliability" },
-    { id: "CY002", short: "UDF w/ builtin", t1: 4.9, t2: 4.5, t3: 13.5, t4: 4.1, ratio: 0.84, cls: "declining", cost: "money" },
-    { id: "CY005", short: "Single-use .cache()", t1: 2.0, t2: 3.2, t3: 2.2, t4: 1.0, ratio: 0.50, cls: "declining", cost: "clarity" },
-    { id: "CY009", short: "UDF in .filter()", t1: 1.8, t2: 1.7, t3: 4.2, t4: 1.0, ratio: 0.56, cls: "declining", cost: "money" },
-    { id: "CY015", short: "Non-equi join", t1: 1.9, t2: 2.3, t3: 4.0, t4: 0.0, ratio: 0.00, cls: "declining", cost: "money" }
+    { id: "CY007", short: "Cross join", t1: 5.3, t2: 5.9, t3: 15.6, t4: 9.4, ratio: 1.77, cls: "rising", cost: "money" },
+    { id: "CY008", short: ".repartition() \u2192 write", t1: 3.6, t2: 5.9, t3: 7.8, t4: 6.2, ratio: 1.72, cls: "rising", cost: "money" },
+    { id: "CY003", short: ".withColumn() loop", t1: 17.1, t2: 20.1, t3: 37.6, t4: 28.1, ratio: 1.64, cls: "rising", cost: "reliability" },
+    { id: "CY011", short: ".withColumnRenamed() loop", t1: 2.7, t2: 4.6, t3: 5.1, t4: 4.2, ratio: 1.56, cls: "rising", cost: "reliability" },
+    { id: "CY012", short: ".show() in prod", t1: 37.9, t2: 40.0, t3: 28.8, t4: 11.5, ratio: 0.30, cls: "declining", cost: "clarity" },
+    { id: "CY014", short: "Repeated actions", t1: 28.3, t2: 32.3, t3: 30.0, t4: 20.8, ratio: 0.73, cls: "persistent", cost: "money" },
+    { id: "CY001", short: ".collect() unfiltered", t1: 14.5, t2: 15.9, t3: 19.2, t4: 7.3, ratio: 0.50, cls: "declining", cost: "reliability" },
+    { id: "CY010", short: "Join w/o explicit how", t1: 12.4, t2: 12.0, t3: 10.6, t4: 5.2, ratio: 0.42, cls: "declining", cost: "clarity" },
+    { id: "CY004", short: "SELECT *", t1: 11.9, t2: 14.7, t3: 20.1, t4: 8.3, ratio: 0.70, cls: "persistent", cost: "money" },
+    { id: "CY006", short: ".toPandas() unfiltered", t1: 10.6, t2: 10.6, t3: 11.8, t4: 6.2, ratio: 0.58, cls: "declining", cost: "reliability" },
+    { id: "CY013", short: ".coalesce(1)", t1: 9.7, t2: 8.6, t3: 11.0, t4: 5.2, ratio: 0.54, cls: "declining", cost: "reliability" },
+    { id: "CY002", short: "UDF w/ builtin", t1: 4.9, t2: 4.7, t3: 13.7, t4: 4.2, ratio: 0.86, cls: "persistent", cost: "reliability" },
+    { id: "CY015", short: "Non-equi join", t1: 2.8, t2: 3.0, t3: 5.3, t4: 1.0, ratio: 0.36, cls: "declining", cost: "money" },
+    { id: "CY005", short: "Single-use .cache()", t1: 2.1, t2: 3.3, t3: 2.3, t4: 1.0, ratio: 0.48, cls: "declining", cost: "clarity" },
+    { id: "CY009", short: "UDF in .filter()", t1: 1.6, t2: 1.9, t3: 4.2, t4: 1.0, ratio: 0.62, cls: "declining", cost: "money" }
   ];
 
   var COST_META = {
@@ -631,9 +631,9 @@ footer a:hover { color: var(--text); }
 
   // ── Footer date ──
   var now = new Date();
-  document.getElementById("dash-footer").textContent = "Cluster Yield \u00b7 5,517 repos \u00b7 " + now.toLocaleDateString("en-US", { month: "long", year: "numeric" });
+  document.getElementById("dash-footer").textContent = "Data generated " + now.toISOString().split("T")[0] + " · Cluster Yield Analytics";
+
 })();
 </script>
-
 </body>
 </html>
