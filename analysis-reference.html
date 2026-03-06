@@ -287,7 +287,7 @@ const RULES = [
     ]
   },
   { id:"CY003", name:".withColumn() in a Loop", sev:"critical", cost:"reliability",
-    desc:'Each <code>.withColumn()</code> creates a new Project node. In a loop, Catalyst pays O(n²) CPU to collapse them. At 200+ columns, the JVM stack overflows before processing any data.',
+    desc:'Each <code>.withColumn()</code> creates a new Project node. In a loop, Catalyst pays O(n²) CPU to collapse them. Planning time grows from milliseconds to minutes as columns increase, and the JVM stack eventually overflows — Spark issues SPARK-26224 and SPARK-28742 document crashes ranging from 9 iterations (complex expressions) to 3,000 columns (simple transforms).',
     bad:'<span class="c"># ❌ O(n²) plan complexity</span>\n<span class="k">for</span> c <span class="k">in</span> columns:\n    df = df.withColumn(c, F.trim(F.col(c)))',
     good:'<span class="c"># ✅ Single .select() — one plan node</span>\ndf = df.select([\n    F.trim(F.col(c)).alias(c) <span class="k">if</span> c <span class="k">in</span> columns <span class="k">else</span> F.col(c)\n    <span class="k">for</span> c <span class="k">in</span> df.columns\n])',
     fix:'Replace the loop with a single <code>.select()</code> or use <code>.withColumns()</code> (Spark 3.3+).',
