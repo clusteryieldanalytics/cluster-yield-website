@@ -274,7 +274,7 @@ const RULES = [
     refs:[ {t:"Databricks",txt:"Spark Knowledge Base — \"Don't copy all elements of a large RDD to the driver\"",u:"https://databricks.gitbooks.io/databricks-spark-knowledge-base/content/best_practices/dont_call_collect_on_a_very_large_rdd.html"} ]
   },
   { id:"CY002", name:"UDF Where Builtin Exists", sev:"warning", cost:"reliability",
-    desc:'PySpark UDFs serialize data from the JVM to a Python process and back for every batch. When an equivalent builtin exists (e.g., <code>F.col(...).cast(\'float\')</code> instead of <code>udf(float)</code>), the builtin runs entirely in the JVM — 10–100× faster. Dollar amounts are not currently computed for this rule; the impact is CPU time and job duration, not scan/shuffle cost.',
+    desc:'PySpark UDFs serialize data from the JVM to a Python process and back for every batch. When an equivalent builtin exists (e.g., <code>F.col(...).cast(\'float\')</code> instead of <code>udf(float)</code>), the builtin runs entirely in the JVM — often 10x faster. Dollar amounts are not currently computed for this rule; the impact is CPU time and job duration, not scan/shuffle cost.',
     bad:'<span class="c"># ❌ UDF for something builtins handle</span>\nto_float = udf(<span class="k">lambda</span> x: float(x), FloatType())\ndf = df.withColumn(<span class="s">"amount"</span>, to_float(col(<span class="s">"amount_str"</span>)))',
     good:'<span class="c"># ✅ Use builtin cast — stays in JVM</span>\ndf = df.withColumn(<span class="s">"amount"</span>, col(<span class="s">"amount_str"</span>).cast(<span class="s">"float"</span>))',
     fix:'Replace the UDF with the equivalent builtin. Common: <code>int()</code> → <code>.cast(\'int\')</code>, <code>float()</code> → <code>.cast(\'float\')</code>, <code>str.upper()</code> → <code>F.upper()</code>, <code>len()</code> → <code>F.length()</code>.',
@@ -282,12 +282,12 @@ const RULES = [
       { tier:"linter", label:"Linter (free)", output:'<span class="loc">pipeline.py:15:0:</span> CY002 [warning] UDF uses float() which has a builtin equivalent: F.col(...).cast(\'float\').' },
     ],
     refs:[
-      {t:"PySpark",txt:"PySpark UDFs — serialization overhead documented",u:"https://spark.apache.org/docs/latest/api/python/user_guide/sql/python_udtf.html"},
+      {t:"PySpark",txt:"PySpark UDFs — serialization overhead documented",u:"https://spark.apache.org/docs/latest/api/python/user_guide/sql/arrow_pandas.html"},
       {t:"AWS",txt:"AWS Prescriptive Guidance — \"Spark SQL is much faster than UDFs\"",u:"https://docs.aws.amazon.com/prescriptive-guidance/latest/tuning-aws-glue-for-apache-spark/optimize-pyspark.html"},
     ]
   },
   { id:"CY003", name:".withColumn() in a Loop", sev:"critical", cost:"reliability",
-    desc:'Each <code>.withColumn()</code> creates a new Project node. In a loop, Catalyst pays O(n²) CPU to collapse them. At 200+ columns, the JVM stack overflows before processing any data.',
+    desc:'Each <code>.withColumn()</code> creates a new Project node. In a loop, Catalyst pays O(n²) CPU to collapse them. Planning time grows from milliseconds to minutes as columns increase, and the JVM stack eventually overflows — Spark issues SPARK-26224 and SPARK-28742 document crashes ranging from 9 iterations (complex expressions) to 3,000 columns (simple transforms).',
     bad:'<span class="c"># ❌ O(n²) plan complexity</span>\n<span class="k">for</span> c <span class="k">in</span> columns:\n    df = df.withColumn(c, F.trim(F.col(c)))',
     good:'<span class="c"># ✅ Single .select() — one plan node</span>\ndf = df.select([\n    F.trim(F.col(c)).alias(c) <span class="k">if</span> c <span class="k">in</span> columns <span class="k">else</span> F.col(c)\n    <span class="k">for</span> c <span class="k">in</span> df.columns\n])',
     fix:'Replace the loop with a single <code>.select()</code> or use <code>.withColumns()</code> (Spark 3.3+).',
@@ -357,10 +357,10 @@ const RULES = [
     ]
   },
   { id:"CY008", name:".repartition() Before .write()", sev:"info", cost:"money",
-    desc:'<code>.repartition(N)</code> triggers a full shuffle — every row serialized across the network. When the goal is output file count, <code>.coalesce()</code> or <code>maxRecordsPerFile</code> avoid the shuffle.',
+    desc:'<code>.repartition(N)</code> triggers a full shuffle — every row serialized across the network. When the goal is output file count, <code>.coalesce()</code> to avoid the shuffle.',
     bad:'<span class="c"># ❌ Full shuffle to control file count</span>\ndf.repartition(<span class="n">10</span>).write.parquet(<span class="s">"s3://output"</span>)',
-    good:'<span class="c"># ✅ Coalesce avoids shuffle</span>\ndf.coalesce(<span class="n">10</span>).write.parquet(<span class="s">"s3://output"</span>)\n<span class="c"># or: .option("maxRecordsPerFile", 1000000)</span>',
-    fix:'Use <code>.coalesce(N)</code> or <code>.option("maxRecordsPerFile", N)</code>.',
+    good:'<span class="c"># ✅ Coalesce avoids shuffle</span>\ndf.coalesce(<span class="n">10</span>).write.parquet(<span class="s">"s3://output"</span>)\n',
+    fix:'Use <code>.coalesce(N)</code>.',
     ladder: [
       { tier:"linter", label:"Linter (free)", output:'<span class="loc">pipeline.py:89:0:</span> CY008 [info] .repartition() before write triggers a full shuffle.' },
       { tier:"snap", label:"With Snapshot", output:'<span class="loc">pipeline.py:89:0:</span> CY008 [info] Unnecessary shuffle before write\n  Upstream scan volume: <span class="hl">120GB</span>, 30 runs/month\n  Shuffle cost: <span class="hl">~$1,400/month</span>\n  Fix: replace with .coalesce(10) — saves the full shuffle' },
