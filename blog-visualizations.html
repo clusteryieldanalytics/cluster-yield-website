@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Corpus Analysis — Cluster Yield</title>
-<meta name="description" content="Analysis of 5,046 PySpark repos — how anti-pattern prevalence changes from hobby code to production.">
+<meta name="description" content="Analysis of 5,025 PySpark repos — how anti-pattern prevalence changes from hobby code to production.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,400;0,500;0,600;0,700&family=JetBrains+Mono:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -197,6 +197,9 @@ nav a.nav-link:hover { color: var(--text-bright); }
 .class-rule.rising {
   background: rgba(220,38,38,0.12); border: 1px solid rgba(220,38,38,0.25);
 }
+.class-rule.persistent {
+  background: rgba(245,158,11,0.08); border: 1px solid rgba(245,158,11,0.2);
+}
 .class-rule.declining {
   background: rgba(5,150,105,0.08); border: 1px solid rgba(5,150,105,0.15);
 }
@@ -209,6 +212,7 @@ nav a.nav-link:hover { color: var(--text-bright); }
   font-size: 10px; font-weight: 700; font-family: var(--mono);
 }
 .class-rule-ratio.rising { color: #dc2626; }
+.class-rule-ratio.persistent { color: #f59e0b; }
 .class-rule-ratio.declining { color: #059669; }
 
 /* — Full table — */
@@ -220,7 +224,12 @@ nav a.nav-link:hover { color: var(--text-bright); }
   padding: 8px 10px; text-align: center; color: #94a3b8;
   font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em;
   font-weight: 600; border-bottom: 2px solid #334155;
+  cursor: pointer; user-select: none; position: relative;
+  transition: color 0.15s;
 }
+.data-table th:hover { color: #e2e8f0; }
+.data-table th .sort-arrow { margin-left: 3px; font-size: 8px; opacity: 0.4; }
+.data-table th.sort-active .sort-arrow { opacity: 1; color: #38bdf8; }
 .data-table th.left { text-align: left; }
 .data-table td {
   padding: 7px 10px; text-align: center; color: #94a3b8;
@@ -241,6 +250,10 @@ nav a.nav-link:hover { color: var(--text-bright); }
 .trend-badge.declining {
   background: rgba(5,150,105,0.12); color: #059669;
   border: 1px solid rgba(5,150,105,0.25);
+}
+.trend-badge.persistent {
+  background: rgba(245,158,11,0.12); color: #f59e0b;
+  border: 1px solid rgba(245,158,11,0.25);
 }
 .cost-dot {
   display: inline-block; width: 8px; height: 8px; border-radius: 50%;
@@ -298,7 +311,7 @@ footer a:hover { color: var(--text); }
       <a href="index.html#how" class="nav-link">How it works</a>
       <a href="index.html#findings" class="nav-link">Sample findings</a>
       <a href="index.html#engage" class="nav-link">Pricing</a>
-      <a href="mailto:hello@clusteryield.app" class="btn-nav">Get started</a>
+      <a href="/cdn-cgi/l/email-protection#046c6168686b44676871777061767d6d6168602a657474" class="btn-nav">Get started</a>
     </div>
   </div>
 </nav>
@@ -313,7 +326,7 @@ footer a:hover { color: var(--text); }
         <div class="dash-accent-bar"></div>
         <h1>Cluster Yield — Corpus Analysis</h1>
       </div>
-      <p>5,046 PySpark repos · 88,637 files · 86,585 findings</p>
+      <p>5,025 PySpark repos · 88,091 files · 110,068 findings</p>
     </div>
 
     <!-- Tabs -->
@@ -358,29 +371,33 @@ footer a:hover { color: var(--text); }
       <!-- Bar chart -->
       <div class="card">
         <h2 class="section-title">Chart 1 — Findings per file by tier</h2>
-        <p class="section-sub">Overall code quality improves 5x from hobby to production code. Engineering discipline works.</p>
+        <p class="section-sub">Overall code quality improves ~4x from hobby to production code. Engineering discipline works.</p>
         <div class="chart-container" id="density-chart"></div>
       </div>
 
       <!-- Rising patterns callout -->
       <div class="rising-callout">
-        <div class="rising-title">4 patterns rise with maturity</div>
+        <div class="rising-title">5 patterns rise with maturity</div>
         <div class="rising-grid">
           <div class="rising-item">
             <div><span class="rising-item-id">CY003</span><span class="rising-item-name">.withColumn() loop</span></div>
             <div class="rising-item-range">17.1% → 28.1%</div>
           </div>
           <div class="rising-item">
-            <div><span class="rising-item-id">CY008</span><span class="rising-item-name">.repartition() → write</span></div>
-            <div class="rising-item-range">3.6% → 6.2%</div>
+            <div><span class="rising-item-id">CY025</span><span class="rising-item-name">Missing .unpersist()</span></div>
+            <div class="rising-item-range">19.3% → 24.0%</div>
           </div>
           <div class="rising-item">
             <div><span class="rising-item-id">CY007</span><span class="rising-item-name">Cross join</span></div>
             <div class="rising-item-range">5.3% → 9.4%</div>
           </div>
           <div class="rising-item">
+            <div><span class="rising-item-id">CY008</span><span class="rising-item-name">.repartition() → write</span></div>
+            <div class="rising-item-range">3.6% → 6.2%</div>
+          </div>
+          <div class="rising-item">
             <div><span class="rising-item-id">CY011</span><span class="rising-item-name">.withColumnRenamed() loop</span></div>
-            <div class="rising-item-range">2.7% → 4.2%</div>
+            <div class="rising-item-range">2.9% → 4.2%</div>
           </div>
         </div>
       </div>
@@ -390,12 +407,16 @@ footer a:hover { color: var(--text); }
     <div class="tab-panel" id="tab-slope">
       <div class="card">
         <h2 class="section-title">Chart 2 — Tier 1 → Tier 4 prevalence slope</h2>
-        <p class="section-sub">Lines sloping upward (red) are patterns that become more prevalent in production code. Lines sloping downward (green) fade with maturity. Only rules with &gt;5% prevalence in either tier shown for clarity.</p>
+        <p class="section-sub">Lines sloping upward (red) are patterns that become more prevalent in production code. Amber lines persist across all tiers. Lines sloping downward (green) fade with maturity. Only rules with &gt;5% prevalence in either tier shown for clarity.</p>
         <div class="chart-container" id="slope-chart"></div>
         <div class="slope-legend">
           <div class="slope-legend-item">
             <div style="width:20px;height:3px;background:#dc2626;border-radius:2px"></div>
             Rising in production
+          </div>
+          <div class="slope-legend-item">
+            <div style="width:20px;height:2px;background:#f59e0b;border-radius:2px;opacity:0.7"></div>
+            Persistent
           </div>
           <div class="slope-legend-item">
             <div style="width:20px;height:2px;background:#059669;border-radius:2px;opacity:0.5"></div>
@@ -437,28 +458,34 @@ footer a:hover { color: var(--text); }
 (function() {
   // ── Data ──
   var TIERS = [
-    { tier: 1, label: "Learning", repos: 1882, files: 24563, findings: 27477, density: 1.12 },
-    { tier: 2, label: "Personal", repos: 2574, files: 42198, findings: 47980, density: 1.14 },
-    { tier: 3, label: "Serious", repos: 473, files: 19457, findings: 8926, density: 0.46 },
-    { tier: 4, label: "Production", repos: 96, files: 1873, findings: 408, density: 0.22 }
+    { tier: 1, label: "Learning", repos: 1882, files: 24563, findings: 35372, density: 1.44 },
+    { tier: 2, label: "Personal", repos: 2574, files: 42198, findings: 62236, density: 1.47 },
+    { tier: 3, label: "Serious", repos: 473, files: 19457, findings: 11840, density: 0.61 },
+    { tier: 4, label: "Production", repos: 96, files: 1873, findings: 620, density: 0.33 }
   ];
 
   var RULES = [
     { id: "CY007", short: "Cross join", t1: 5.3, t2: 5.9, t3: 15.6, t4: 9.4, ratio: 1.77, cls: "rising", cost: "money" },
     { id: "CY008", short: ".repartition() \u2192 write", t1: 3.6, t2: 5.9, t3: 7.8, t4: 6.2, ratio: 1.72, cls: "rising", cost: "money" },
     { id: "CY003", short: ".withColumn() loop", t1: 17.1, t2: 20.1, t3: 37.6, t4: 28.1, ratio: 1.64, cls: "rising", cost: "reliability" },
-    { id: "CY011", short: ".withColumnRenamed() loop", t1: 2.7, t2: 4.6, t3: 5.1, t4: 4.2, ratio: 1.56, cls: "rising", cost: "reliability" },
-    { id: "CY012", short: ".show() in prod", t1: 37.9, t2: 40.0, t3: 28.8, t4: 11.5, ratio: 0.30, cls: "declining", cost: "clarity" },
-    { id: "CY014", short: "Repeated actions", t1: 28.3, t2: 32.3, t3: 30.0, t4: 20.8, ratio: 0.73, cls: "persistent", cost: "money" },
-    { id: "CY001", short: ".collect() unfiltered", t1: 14.5, t2: 15.9, t3: 19.2, t4: 7.3, ratio: 0.50, cls: "declining", cost: "reliability" },
-    { id: "CY010", short: "Join w/o explicit how", t1: 12.4, t2: 12.0, t3: 10.6, t4: 5.2, ratio: 0.42, cls: "declining", cost: "clarity" },
-    { id: "CY004", short: "SELECT *", t1: 11.9, t2: 14.7, t3: 20.1, t4: 8.3, ratio: 0.70, cls: "persistent", cost: "money" },
-    { id: "CY006", short: ".toPandas() unfiltered", t1: 10.6, t2: 10.6, t3: 11.8, t4: 6.2, ratio: 0.58, cls: "declining", cost: "reliability" },
-    { id: "CY013", short: ".coalesce(1)", t1: 9.7, t2: 8.6, t3: 11.0, t4: 5.2, ratio: 0.54, cls: "declining", cost: "reliability" },
+    { id: "CY011", short: ".withColumnRenamed() loop", t1: 2.9, t2: 4.9, t3: 5.1, t4: 4.2, ratio: 1.45, cls: "rising", cost: "reliability" },
+    { id: "CY025", short: "Missing .unpersist()", t1: 19.3, t2: 20.2, t3: 36.8, t4: 24.0, ratio: 1.24, cls: "rising", cost: "reliability" },
+    { id: "CY017", short: "Window w/o partitionBy", t1: 7.1, t2: 8.7, t3: 16.7, t4: 8.3, ratio: 1.17, cls: "persistent", cost: "money" },
+    { id: "CY016", short: "Invalid escape seq", t1: 9.4, t2: 10.0, t3: 17.5, t4: 8.3, ratio: 0.88, cls: "persistent", cost: "clarity" },
     { id: "CY002", short: "UDF w/ builtin", t1: 4.9, t2: 4.7, t3: 13.7, t4: 4.2, ratio: 0.86, cls: "persistent", cost: "reliability" },
-    { id: "CY015", short: "Non-equi join", t1: 2.8, t2: 3.0, t3: 5.3, t4: 1.0, ratio: 0.36, cls: "declining", cost: "money" },
+    { id: "CY020", short: ".count() for emptiness", t1: 3.8, t2: 5.5, t3: 3.8, t4: 3.1, ratio: 0.82, cls: "persistent", cost: "money" },
+    { id: "CY014", short: "Repeated actions", t1: 28.4, t2: 32.4, t3: 30.2, t4: 20.8, ratio: 0.73, cls: "persistent", cost: "money" },
+    { id: "CY004", short: "SELECT *", t1: 11.9, t2: 14.7, t3: 20.1, t4: 8.3, ratio: 0.70, cls: "persistent", cost: "money" },
+    { id: "CY009", short: "UDF in .filter()", t1: 1.6, t2: 1.9, t3: 4.2, t4: 1.0, ratio: 0.62, cls: "declining", cost: "money" },
+    { id: "CY006", short: ".toPandas() unfiltered", t1: 10.7, t2: 10.7, t3: 12.1, t4: 6.2, ratio: 0.58, cls: "declining", cost: "reliability" },
+    { id: "CY013", short: ".coalesce(1)", t1: 9.7, t2: 8.6, t3: 11.0, t4: 5.2, ratio: 0.54, cls: "declining", cost: "reliability" },
+    { id: "CY001", short: ".collect() unfiltered", t1: 14.5, t2: 16.1, t3: 19.2, t4: 7.3, ratio: 0.50, cls: "declining", cost: "reliability" },
     { id: "CY005", short: "Single-use .cache()", t1: 2.1, t2: 3.3, t3: 2.3, t4: 1.0, ratio: 0.48, cls: "declining", cost: "clarity" },
-    { id: "CY009", short: "UDF in .filter()", t1: 1.6, t2: 1.9, t3: 4.2, t4: 1.0, ratio: 0.62, cls: "declining", cost: "money" }
+    { id: "CY010", short: "Join w/o explicit how", t1: 12.4, t2: 12.1, t3: 10.6, t4: 5.2, ratio: 0.42, cls: "declining", cost: "clarity" },
+    { id: "CY018", short: "Schema inference", t1: 45.6, t2: 45.1, t3: 29.6, t4: 17.7, ratio: 0.39, cls: "declining", cost: "money" },
+    { id: "CY015", short: "Non-equi join", t1: 2.8, t2: 3.1, t3: 5.5, t4: 1.0, ratio: 0.36, cls: "declining", cost: "money" },
+    { id: "CY031", short: "for row in .collect()", t1: 12.1, t2: 13.9, t3: 17.3, t4: 4.2, ratio: 0.35, cls: "declining", cost: "reliability" },
+    { id: "CY012", short: ".show() in prod", t1: 38.0, t2: 40.0, t3: 28.8, t4: 11.5, ratio: 0.30, cls: "declining", cost: "clarity" }
   ];
 
   var COST_META = {
@@ -532,10 +559,11 @@ footer a:hover { color: var(--text); }
   // ── Slope Chart (SVG) ──
   (function() {
     var rising = RULES.filter(function(r) { return r.cls === "rising"; });
+    var persistent = RULES.filter(function(r) { return r.cls === "persistent" && (r.t1 > 5 || r.t4 > 5); });
     var declining = RULES.filter(function(r) { return r.cls === "declining" && (r.t1 > 5 || r.t4 > 5); });
-    var rules = rising.concat(declining);
+    var rules = rising.concat(persistent).concat(declining);
 
-    var W = 600, H = 400;
+    var W = 600, H = 600;
     var PAD = { top: 44, bottom: 24, left: 160, right: 160 };
     var plotW = W - PAD.left - PAD.right;
     var plotH = H - PAD.top - PAD.bottom;
@@ -555,7 +583,7 @@ footer a:hover { color: var(--text); }
     svg.appendChild(svgEl("text", { x: PAD.left + plotW, y: PAD.top - 20, "text-anchor": "middle", fill: "#64748b", "font-size": 9 }, "Production"));
 
     // Grid lines
-    [0, 10, 20, 30, 40].forEach(function(v) {
+    [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50].forEach(function(v) {
       if (v > maxVal + 5) return;
       svg.appendChild(svgEl("line", { x1: PAD.left, y1: scale(v), x2: PAD.left + plotW, y2: scale(v), stroke: "#334155", "stroke-width": 0.5, "stroke-dasharray": "4 4" }));
       svg.appendChild(svgEl("text", { x: PAD.left - 6, y: scale(v) + 3.5, "text-anchor": "end", fill: "#64748b", "font-size": 9, "font-family": "'JetBrains Mono', monospace" }, v + "%"));
@@ -564,14 +592,17 @@ footer a:hover { color: var(--text); }
     // Slope lines
     rules.forEach(function(r) {
       var isRising = r.cls === "rising";
-      var color = isRising ? "#dc2626" : "#059669";
+      var isPersistent = r.cls === "persistent";
+      var color = isRising ? "#dc2626" : (isPersistent ? "#f59e0b" : "#059669");
+      var weight = isRising ? 2.5 : (isPersistent ? 1.8 : 1.5);
+      var opacity = isRising ? 1 : (isPersistent ? 0.7 : 0.5);
       var y1 = scale(r.t1), y4 = scale(r.t4);
 
-      svg.appendChild(svgEl("line", { x1: PAD.left, y1: y1, x2: PAD.left + plotW, y2: y4, stroke: color, "stroke-width": isRising ? 2.5 : 1.5, "stroke-opacity": isRising ? 1 : 0.5 }));
-      svg.appendChild(svgEl("circle", { cx: PAD.left, cy: y1, r: 3, fill: color, "fill-opacity": isRising ? 1 : 0.6 }));
-      svg.appendChild(svgEl("circle", { cx: PAD.left + plotW, cy: y4, r: 3, fill: color, "fill-opacity": isRising ? 1 : 0.6 }));
-      svg.appendChild(svgEl("text", { x: PAD.left - 8, y: y1 + 4, "text-anchor": "end", fill: color, "font-size": 10, "font-weight": isRising ? 700 : 400, "font-family": "'JetBrains Mono', monospace", "fill-opacity": isRising ? 1 : 0.7 }, r.short));
-      svg.appendChild(svgEl("text", { x: PAD.left + plotW + 8, y: y4 + 4, "text-anchor": "start", fill: color, "font-size": 10, "font-weight": isRising ? 700 : 400, "font-family": "'JetBrains Mono', monospace", "fill-opacity": isRising ? 1 : 0.7 }, r.t4 + "%"));
+      svg.appendChild(svgEl("line", { x1: PAD.left, y1: y1, x2: PAD.left + plotW, y2: y4, stroke: color, "stroke-width": weight, "stroke-opacity": opacity }));
+      svg.appendChild(svgEl("circle", { cx: PAD.left, cy: y1, r: 3, fill: color, "fill-opacity": opacity }));
+      svg.appendChild(svgEl("circle", { cx: PAD.left + plotW, cy: y4, r: 3, fill: color, "fill-opacity": opacity }));
+      svg.appendChild(svgEl("text", { x: PAD.left - 8, y: y1 + 4, "text-anchor": "end", fill: color, "font-size": 10, "font-weight": isRising ? 700 : 400, "font-family": "'JetBrains Mono', monospace", "fill-opacity": opacity }, r.short));
+      svg.appendChild(svgEl("text", { x: PAD.left + plotW + 8, y: y4 + 4, "text-anchor": "start", fill: color, "font-size": 10, "font-weight": isRising ? 700 : 400, "font-family": "'JetBrains Mono', monospace", "fill-opacity": opacity }, r.t4 + "%"));
     });
 
     document.getElementById("slope-chart").appendChild(svg);
@@ -590,7 +621,7 @@ footer a:hover { color: var(--text); }
       var header = '<div class="class-header"><div class="class-dot" style="background:' + meta.color + '"></div><div><div class="class-label">' + meta.label + '</div><div class="class-desc">' + meta.desc + '</div></div></div>';
 
       var rulesHtml = rules.map(function(r) {
-        var arrow = r.cls === "rising" ? "\u25B2" : "\u25BC";
+        var arrow = r.cls === "rising" ? "\u25B2" : (r.cls === "persistent" ? "\u25CF" : "\u25BC");
         return '<div class="class-rule ' + r.cls + '"><div><span class="class-rule-id">' + r.id + '</span><span class="class-rule-name">' + r.short + '</span></div><span class="class-rule-ratio ' + r.cls + '">' + arrow + ' ' + r.ratio.toFixed(2) + '</span></div>';
       }).join("");
 
@@ -599,34 +630,71 @@ footer a:hover { color: var(--text); }
     });
   })();
 
-  // ── Full Table ──
+  // ── Full Table (sortable) ──
   (function() {
-    var sorted = RULES.slice().sort(function(a, b) { return b.ratio - a.ratio; });
-    var html = '<table class="data-table"><thead><tr>';
-    ["Rule", "Pattern", "T1", "T2", "T3", "T4", "Ratio", "Trend", "Cost type"].forEach(function(h) {
-      html += '<th' + (h === "Pattern" ? ' class="left"' : '') + '>' + h + '</th>';
-    });
-    html += '</tr></thead><tbody>';
+    var sortCol = "ratio";
+    var sortDir = -1; // -1 = descending, 1 = ascending
+    var container = document.getElementById("full-table");
 
-    sorted.forEach(function(r) {
-      var isRising = r.cls === "rising";
-      var arrow = isRising ? "\u25B2 RISING" : "\u25BC declining";
-      var costColor = COST_META[r.cost].color;
-      html += '<tr class="' + (isRising ? 'rising-row' : '') + '">';
-      html += '<td class="id-col">' + r.id + '</td>';
-      html += '<td class="left">' + r.short + '</td>';
-      html += '<td>' + r.t1 + '%</td>';
-      html += '<td>' + r.t2 + '%</td>';
-      html += '<td>' + r.t3 + '%</td>';
-      html += '<td class="t4">' + r.t4 + '%</td>';
-      html += '<td style="color:' + (isRising ? '#dc2626' : '#059669') + ';font-weight:700">' + r.ratio.toFixed(2) + '</td>';
-      html += '<td><span class="trend-badge ' + r.cls + '">' + arrow + '</span></td>';
-      html += '<td><span class="cost-dot" style="background:' + costColor + '"></span><span class="cost-label">' + r.cost + '</span></td>';
-      html += '</tr>';
-    });
+    var columns = [
+      { key: "id",    label: "Rule",      align: "left",  fmt: function(r) { return '<td class="id-col">' + r.id + '</td>'; } },
+      { key: "short", label: "Pattern",   align: "left",  fmt: function(r) { return '<td class="left">' + r.short + '</td>'; } },
+      { key: "t1",    label: "T1",        align: "center", fmt: function(r) { return '<td>' + r.t1 + '%</td>'; } },
+      { key: "t2",    label: "T2",        align: "center", fmt: function(r) { return '<td>' + r.t2 + '%</td>'; } },
+      { key: "t3",    label: "T3",        align: "center", fmt: function(r) { return '<td>' + r.t3 + '%</td>'; } },
+      { key: "t4",    label: "T4",        align: "center", fmt: function(r) { return '<td class="t4">' + r.t4 + '%</td>'; } },
+      { key: "ratio", label: "Ratio",     align: "center", fmt: function(r) {
+        var isRising = r.cls === "rising";
+        return '<td style="color:' + (isRising ? '#dc2626' : r.cls === 'persistent' ? '#f59e0b' : '#059669') + ';font-weight:700">' + r.ratio.toFixed(2) + '</td>';
+      }},
+      { key: "cls",   label: "Trend",     align: "center", fmt: function(r) {
+        var label = r.cls === "rising" ? "\u25B2 RISING" : (r.cls === "persistent" ? "\u25CF persistent" : "\u25BC declining");
+        var badgeCls = r.cls === "persistent" ? "persistent" : r.cls;
+        return '<td><span class="trend-badge ' + badgeCls + '">' + label + '</span></td>';
+      }},
+      { key: "cost",  label: "Cost type", align: "center", fmt: function(r) {
+        var costColor = COST_META[r.cost].color;
+        return '<td><span class="cost-dot" style="background:' + costColor + '"></span><span class="cost-label">' + r.cost + '</span></td>';
+      }}
+    ];
 
-    html += '</tbody></table>';
-    document.getElementById("full-table").innerHTML = html;
+    function render() {
+      var sorted = RULES.slice().sort(function(a, b) {
+        var va = a[sortCol], vb = b[sortCol];
+        if (typeof va === "string") return sortDir * va.localeCompare(vb);
+        return sortDir * (va - vb);
+      });
+
+      var html = '<table class="data-table"><thead><tr>';
+      columns.forEach(function(col) {
+        var isActive = col.key === sortCol;
+        var arrow = isActive ? (sortDir === -1 ? "\u25BC" : "\u25B2") : "\u25B6";
+        html += '<th class="' + (col.align === "left" ? "left " : "") + (isActive ? "sort-active" : "") + '" data-col="' + col.key + '">';
+        html += col.label + '<span class="sort-arrow">' + arrow + '</span></th>';
+      });
+      html += '</tr></thead><tbody>';
+
+      sorted.forEach(function(r) {
+        var rowCls = r.cls === "rising" ? "rising-row" : "";
+        html += '<tr class="' + rowCls + '">';
+        columns.forEach(function(col) { html += col.fmt(r); });
+        html += '</tr>';
+      });
+      html += '</tbody></table>';
+      container.innerHTML = html;
+
+      // Attach click handlers
+      container.querySelectorAll("th").forEach(function(th) {
+        th.addEventListener("click", function() {
+          var col = th.getAttribute("data-col");
+          if (col === sortCol) { sortDir *= -1; }
+          else { sortCol = col; sortDir = -1; }
+          render();
+        });
+      });
+    }
+
+    render();
   })();
 
   // ── Footer date ──
