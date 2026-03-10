@@ -1,0 +1,676 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>We Linted 5,046 PySpark Projects on GitHub — Cluster Yield</title>
+<meta name="description" content="We scanned 5,046 PySpark repos for anti-patterns. Here's what static analysis can and can't tell you about Spark cost optimization.">
+<meta property="og:title" content="We Linted 5,046 PySpark Projects on GitHub">
+<meta property="og:description" content="What static analysis can and can't tell you about Spark cost optimization.">
+<meta property="og:type" content="article">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,400;0,500;0,600;0,700&family=JetBrains+Mono:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #0a0c10;
+  --bg-raised: #12151c;
+  --bg-card: #171b24;
+  --border: #1e2330;
+  --border-light: #2a3040;
+  --text: #c8cdd8;
+  --text-dim: #6b7280;
+  --text-bright: #e8ecf4;
+  --heading: #f0f2f7;
+  --accent: #3b82f6;
+  --accent-dim: #1d4ed8;
+  --green: #22c55e;
+  --amber: #f59e0b;
+  --red: #ef4444;
+  --mono: 'JetBrains Mono', monospace;
+  --sans: 'DM Sans', system-ui, sans-serif;
+}
+
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: var(--sans);
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.65;
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection { background: rgba(59,130,246,0.3); }
+
+/* — Nav — */
+nav {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+  background: rgba(10,12,16,0.85);
+  backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--border);
+}
+nav .inner {
+  max-width: 1080px; margin: 0 auto; padding: 0 24px;
+  display: flex; align-items: center; justify-content: space-between;
+  height: 60px;
+}
+.logo {
+  font-family: var(--mono); font-weight: 600; font-size: 15px;
+  color: var(--heading); letter-spacing: -0.02em;
+  text-decoration: none;
+}
+.logo span { color: var(--accent); }
+nav a.nav-link {
+  font-size: 14px; color: var(--text-dim); text-decoration: none;
+  transition: color 0.15s;
+}
+nav a.nav-link:hover { color: var(--text-bright); }
+.nav-links { display: flex; gap: 28px; align-items: center; }
+.btn-nav {
+  font-family: var(--mono); font-size: 13px; font-weight: 500;
+  padding: 8px 18px; border-radius: 6px;
+  background: var(--accent); color: #fff;
+  text-decoration: none; transition: background 0.15s;
+}
+.btn-nav:hover { background: var(--accent-dim); }
+
+/* — Article — */
+.article-wrap {
+  padding: 100px 24px 60px;
+  max-width: 740px;
+  margin: 0 auto;
+}
+
+.article-header {
+  margin-bottom: 40px;
+  padding-bottom: 28px;
+  border-bottom: 1px solid var(--border);
+}
+.article-header h1 {
+  font-family: var(--mono);
+  font-size: 26px;
+  font-weight: 800;
+  color: var(--heading);
+  letter-spacing: -0.03em;
+  line-height: 1.3;
+  margin-bottom: 12px;
+}
+.article-meta {
+  font-size: 13px;
+  color: var(--text-dim);
+}
+.article-meta a {
+  color: var(--accent);
+  text-decoration: none;
+}
+.article-meta a:hover { text-decoration: underline; }
+
+/* — Prose — */
+.prose p {
+  font-size: 15px;
+  color: var(--text);
+  line-height: 1.75;
+  margin-bottom: 20px;
+}
+.prose strong {
+  color: var(--text-bright);
+  font-weight: 600;
+}
+.prose em { font-style: italic; }
+.prose a {
+  color: var(--accent);
+  text-decoration: none;
+  border-bottom: 1px solid rgba(59,130,246,0.3);
+  transition: border-color 0.15s;
+}
+.prose a:hover { border-color: var(--accent); }
+
+.prose h2 {
+  font-family: var(--mono);
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--heading);
+  letter-spacing: -0.02em;
+  margin: 48px 0 20px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border);
+}
+
+.prose h2:first-of-type {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
+}
+
+/* — Code blocks — */
+.prose pre {
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px 20px;
+  font-family: var(--mono);
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: var(--text-bright);
+  overflow-x: auto;
+  margin-bottom: 24px;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+.prose code {
+  font-family: var(--mono);
+  font-size: 13px;
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  padding: 1px 6px;
+  border-radius: 4px;
+  color: var(--accent);
+}
+.prose pre code {
+  background: none;
+  border: none;
+  padding: 0;
+  color: inherit;
+  font-size: inherit;
+}
+
+/* — Tables — */
+.prose table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12.5px;
+  font-family: var(--mono);
+  margin-bottom: 8px;
+}
+.prose table th {
+  padding: 8px 10px;
+  text-align: center;
+  color: #94a3b8;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 600;
+  border-bottom: 2px solid #334155;
+}
+.prose table th:first-child,
+.prose table th:nth-child(2) { text-align: left; }
+.prose table td {
+  padding: 7px 10px;
+  text-align: center;
+  color: #94a3b8;
+  border-bottom: 1px solid var(--border);
+}
+.prose table td:first-child {
+  color: var(--accent);
+  font-weight: 700;
+  text-align: left;
+}
+.prose table td:nth-child(2) {
+  text-align: left;
+  color: var(--text);
+}
+.prose table tr:hover { background: rgba(255,255,255,0.02); }
+
+.table-caption {
+  font-size: 12px;
+  color: var(--text-dim);
+  font-style: italic;
+  margin-bottom: 28px;
+}
+
+/* — Rising row highlights — */
+.prose table tr.rising td { background: rgba(220,38,38,0.05); }
+.prose table .trend-rise { color: var(--red); font-weight: 600; }
+.prose table .trend-flat { color: var(--amber); }
+
+/* — Blockquote — */
+.prose blockquote {
+  border-left: 3px solid var(--accent);
+  margin: 28px 0;
+  padding: 16px 24px;
+  background: var(--bg-raised);
+  border-radius: 0 8px 8px 0;
+}
+.prose blockquote p {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-bright);
+  font-style: italic;
+  margin-bottom: 0;
+}
+
+/* — Signal list — */
+.signal-list {
+  margin: 16px 0 24px;
+  padding-left: 0;
+  list-style: none;
+}
+.signal-list li {
+  font-size: 14px;
+  color: var(--text);
+  padding: 6px 0 6px 20px;
+  position: relative;
+}
+.signal-list li::before {
+  content: '→';
+  position: absolute;
+  left: 0;
+  color: var(--accent);
+  font-family: var(--mono);
+  font-weight: 700;
+}
+
+/* — Question list — */
+.question-list {
+  margin: 16px 0 28px;
+  padding-left: 0;
+  list-style: none;
+}
+.question-list li {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-bright);
+  padding: 8px 0 8px 24px;
+  position: relative;
+}
+.question-list li::before {
+  content: '?';
+  position: absolute;
+  left: 0;
+  color: var(--accent);
+  font-family: var(--mono);
+  font-weight: 800;
+  font-size: 16px;
+}
+
+/* — CTA box — */
+.cta-box {
+  background: var(--bg-raised);
+  border: 1px solid var(--accent);
+  border-radius: 10px;
+  padding: 28px 32px;
+  margin: 40px 0;
+  text-align: center;
+}
+.cta-box p {
+  font-size: 15px;
+  color: var(--text);
+  margin-bottom: 8px;
+}
+.cta-box code {
+  font-family: var(--mono);
+  font-size: 14px;
+  color: var(--accent);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+.cta-box a {
+  color: var(--accent);
+  text-decoration: none;
+  font-weight: 600;
+}
+.cta-box a:hover { text-decoration: underline; }
+
+/* — Findings demo — */
+.finding-demo {
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--red);
+  border-radius: 0 8px 8px 0;
+  padding: 20px 24px;
+  margin: 24px 0;
+  font-family: var(--mono);
+  font-size: 12.5px;
+  line-height: 1.7;
+  color: var(--text);
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+.finding-demo .sev-crit { color: var(--red); font-weight: 700; }
+.finding-demo .sev-warn { color: var(--amber); font-weight: 700; }
+.finding-demo .hl { color: var(--accent); }
+.finding-demo .savings { color: var(--green); font-weight: 600; }
+.finding-demo .dim { color: var(--text-dim); }
+
+/* — Emphasis box — */
+.emphasis-box {
+  background: rgba(59,130,246,0.06);
+  border: 1px solid rgba(59,130,246,0.2);
+  border-radius: 8px;
+  padding: 20px 24px;
+  margin: 24px 0;
+}
+.emphasis-box p {
+  font-size: 14px;
+  margin-bottom: 0;
+}
+
+/* — Image stubs and rule links — */
+.img-stub {
+  background: var(--bg-raised);
+  border: 2px dashed var(--border-light);
+  border-radius: 8px;
+  padding: 32px 24px;
+  margin: 20px 0;
+  text-align: center;
+  color: var(--text-dim);
+  font-size: 13px;
+  font-family: var(--mono);
+}
+.img-stub .label { display: block; margin-bottom: 4px; font-weight: 600; color: var(--text); font-size: 14px; }
+
+.prose table td:first-child a {
+  color: var(--accent);
+  text-decoration: none;
+  font-weight: 700;
+}
+.prose table td:first-child a:hover {
+  text-decoration: underline;
+}
+
+/* — Footer — */
+footer {
+  border-top: 1px solid var(--border);
+  padding: 32px 24px;
+  text-align: center;
+}
+footer .inner {
+  max-width: 1080px; margin: 0 auto;
+  display: flex; justify-content: space-between; align-items: center;
+}
+footer p { font-size: 12px; color: var(--text-dim); }
+
+@media (max-width: 768px) {
+  .nav-links .nav-link { display: none; }
+  .article-wrap { padding: 80px 16px 40px; }
+  .article-header h1 { font-size: 20px; }
+  .prose table { font-size: 11px; }
+  .prose table th, .prose table td { padding: 5px 6px; }
+  footer .inner { flex-direction: column; gap: 12px; text-align: center; }
+}
+</style>
+</head>
+<body>
+
+<!-- Nav -->
+<nav>
+  <div class="inner">
+    <a href="index.html" class="logo">cluster<span>yield</span></a>
+    <div class="nav-links">
+      <a href="index.html#how" class="nav-link">How it works</a>
+      <a href="index.html#findings" class="nav-link">Sample findings</a>
+      <a href="index.html#engage" class="nav-link">Pricing</a>
+      <a href="/cdn-cgi/l/email-protection#7018151c1c1f30131c05030415020919151c145e110000" class="btn-nav">Get started</a>
+    </div>
+  </div>
+</nav>
+
+<!-- Article -->
+<article class="article-wrap">
+  <header class="article-header">
+    <h1>We Linted 5,046 PySpark Projects on GitHub. Here's What Static Analysis Can and Can't Tell You.</h1>
+    <div class="article-meta">March 2026 · <a href="https://clusteryield.app">Cluster Yield</a></div>
+  </header>
+
+  <div class="prose">
+
+    <p>I know what you're thinking… "dear God not another linter". And honestly, the sentiment is understandable. How many of us want to bother installing yet another tool into our already cluttered workflows? How many rules am I going to have to disable THIS time, just to get a clean CI build again? And that is a totally fair position to take. I've been there. But after spending some time working on production PySpark systems that cost hundreds of thousands of dollars per month to run (and nobody bats an eye), the amount of waste I saw was genuinely surprising.</p>
+
+    <p>Of course, not all organizations do data engineering with Spark the same way as we did, so my single data point might not generalize well. But knowing I don't have the full picture got me thinking about the overall problem and whether this is something that other teams also deal with. How prevalent is compute/shuffle/scan waste across the industry? How much money can be saved if those problems are fixed? Is monetary waste a problem that static analysis on its own can handle, and if not, why not? These are questions that I feel are worth asking and digging into because I believe that static analysis has its place in Data Engineering workflows and that it is possible to quantify, with dollars and cents, many of these wasteful spends within the comfort of the engineering dev cycle.  <b>What if, at code review time, you could see exactly how much a code change would cost in production — before it ever gets deployed?</b></p>
+
+    <h2>First, Here's What Our Static Analysis Found</h2>
+
+    <p>I scraped 5,046 PySpark repos from GitHub, organized them into tiers based on code maturity, and scanned the repos for anti-patterns. The maturity of a repo was expressed as:</p>
+
+<pre><code># Tier 4 — Production-Adjacent
+if (stars > 200 and is_org
+        and (has_deploy or contribs > 10 or commits > 500)):
+    return 4
+
+# Tier 3 — Serious Projects
+if ((stars > 50 or contribs > 3)
+        and (has_ci or has_tests or has_pkg)):
+    return 3
+
+# Tier 2 — Personal Projects
+if stars >= 5 or contribs >= 2 or commits >= 10:
+    return 2
+
+# Tier 1 — Learning/Hobby
+return 1</code></pre>
+
+    <p>(You can see the full scan harness code at <a href="https://github.com/clusteryieldanalytics/scan-harness">github.com/clusteryieldanalytics/scan-harness</a>)</p>
+
+    <p>The linter itself is open source at <a href="https://github.com/clusteryieldanalytics/cylint">github.com/clusteryieldanalytics/cylint</a>. A full discussion of all of these anti-patterns is enough for a follow-up blog post on its own, so I'll defer that for now and instead focus on what I found, and how it relates to the questions I asked earlier. If you're interested, you can find the analysis reference for all the static rules I used at <a href="https://clusteryield.app/analysis-reference.html">clusteryield.app/analysis-reference</a>. And if you're curious about how your own codebase hygiene stacks up, I encourage you to <code>pip install cylint && cy lint src/</code>. Let me know what you find! PRs are always welcome.</p>
+
+    <p>Anyway, here's how the corpus looks overall:</p>
+
+    <table>
+      <thead>
+        <tr><th></th><th>Tier 1 — Learning</th><th>Tier 2 — Personal</th><th>Tier 3 — Serious</th><th>Tier 4 — Prod-adj</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Repos</td><td>1,882</td><td>2,574</td><td>473</td><td>96</td></tr>
+        <tr><td>PySpark files</td><td>24,563</td><td>42,198</td><td>19,457</td><td>1,873</td></tr>
+        <tr><td>Findings/file</td><td>1.44</td><td>1.47</td><td>0.61</td><td>0.33</td></tr>
+      </tbody>
+    </table>
+    <div class="table-caption">Table 1 — Overall hit rate by project tier</div>
+
+    <p>Okay, so more experienced engineers definitely write cleaner code overall. Hooray! Tell me something I don't know, right? Well, it gets a bit more interesting when we break it down by finding. The data splits into two categories: patterns that decline with maturity, and patterns that persist (or concentrate) in production code.</p>
+
+    <table>
+      <thead>
+        <tr><th>Rule</th><th>Description</th><th>T1</th><th>T4</th><th>Ratio</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><a href="https://clusteryield.app/analysis-reference.html#CY018">CY018</a></td><td>schema inference (.read without .schema)</td><td>45.6%</td><td>17.7%</td><td>0.39</td></tr>
+        <tr><td><a href="https://clusteryield.app/analysis-reference.html#CY031">CY031</a></td><td>iterating over .collect()</td><td>12.1%</td><td>4.2%</td><td>0.35</td></tr>
+        <tr><td><a href="https://clusteryield.app/analysis-reference.html#CY012">CY012</a></td><td>.show() left in</td><td>38.0%</td><td>11.5%</td><td>0.30</td></tr>
+        <tr><td><a href="https://clusteryield.app/analysis-reference.html#CY015">CY015</a></td><td>non-equi join</td><td>2.8%</td><td>1.0%</td><td>0.36</td></tr>
+        <tr><td><a href="https://clusteryield.app/analysis-reference.html#CY010">CY010</a></td><td>join without explicit how</td><td>12.4%</td><td>5.2%</td><td>0.42</td></tr>
+        <tr><td><a href="https://clusteryield.app/analysis-reference.html#CY005">CY005</a></td><td>single-use .cache()</td><td>2.1%</td><td>1.0%</td><td>0.48</td></tr>
+        <tr><td><a href="https://clusteryield.app/analysis-reference.html#CY001">CY001</a></td><td>.collect() unfiltered</td><td>14.5%</td><td>7.3%</td><td>0.50</td></tr>
+        <tr><td><a href="https://clusteryield.app/analysis-reference.html#CY013">CY013</a></td><td>.coalesce(1)</td><td>9.7%</td><td>5.2%</td><td>0.54</td></tr>
+        <tr><td><a href="https://clusteryield.app/analysis-reference.html#CY006">CY006</a></td><td>.toPandas() unfiltered</td><td>10.6%</td><td>6.2%</td><td>0.58</td></tr>
+        <tr><td><a href="https://clusteryield.app/analysis-reference.html#CY009">CY009</a></td><td>UDF in .filter()</td><td>1.6%</td><td>1.0%</td><td>0.62</td></tr>
+      </tbody>
+    </table>
+    <div class="table-caption">Table 2 — Declining prevalence (T1 vs T4). These patterns fade with experience.</div>
+
+    <p>These are the antipatterns that experienced engineers are good at avoiding. I won't spend much time going deep into this data… Most of these antipatterns are obvious and easy to avoid. A full deep-dive into each of them will be covered in a future blog post. But what's much more immediately interesting is what I noticed about the rest of the findings. I certainly didn't expect certain antipatterns to <em>concentrate</em> in production-quality code:</p>
+
+    <table>
+      <thead>
+        <tr><th>Rule</th><th>Description</th><th>T1</th><th>T4</th><th>Ratio</th><th>Trend</th></tr>
+      </thead>
+      <tbody>
+        <tr class="rising"><td><a href="https://clusteryield.app/analysis-reference.html#CY007">CY007</a></td><td>cross join</td><td>5.3%</td><td>9.4%</td><td>1.77</td><td class="trend-rise">▲ more prevalent</td></tr>
+        <tr class="rising"><td><a href="https://clusteryield.app/analysis-reference.html#CY008">CY008</a></td><td>.repartition() before write</td><td>3.6%</td><td>6.2%</td><td>1.72</td><td class="trend-rise">▲ more prevalent</td></tr>
+        <tr class="rising"><td><a href="https://clusteryield.app/analysis-reference.html#CY003">CY003</a></td><td>.withColumn() in loop</td><td>17.1%</td><td>28.1%</td><td>1.64</td><td class="trend-rise">▲ more prevalent</td></tr>
+        <tr class="rising"><td><a href="https://clusteryield.app/analysis-reference.html#CY011">CY011</a></td><td>.withColumnRenamed() loop</td><td>2.9%</td><td>4.2%</td><td>1.45</td><td class="trend-rise">▲ more prevalent</td></tr>
+        <tr class="rising"><td><a href="https://clusteryield.app/analysis-reference.html#CY025">CY025</a></td><td>.cache() without .unpersist</td><td>19.3%</td><td>24.0%</td><td>1.24</td><td class="trend-rise">▲ more prevalent</td></tr>
+        <tr class="rising"><td><a href="https://clusteryield.app/analysis-reference.html#CY017">CY017</a></td><td>window without .partitionBy</td><td>7.1%</td><td>8.3%</td><td>1.17</td><td class="trend-rise">▲ more prevalent</td></tr>
+        <tr><td><a href="https://clusteryield.app/analysis-reference.html#CY002">CY002</a></td><td>UDF w/ builtin exists</td><td>4.9%</td><td>4.2%</td><td>0.86</td><td class="trend-flat">— flat</td></tr>
+        <tr><td><a href="https://clusteryield.app/analysis-reference.html#CY020">CY020</a></td><td>.count() for emptiness check</td><td>3.8%</td><td>3.1%</td><td>0.82</td><td class="trend-flat">— flat</td></tr>
+        <tr><td><a href="https://clusteryield.app/analysis-reference.html#CY014">CY014</a></td><td>repeated actions w/o cache</td><td>28.4%</td><td>20.8%</td><td>0.73</td><td class="trend-flat">— flat</td></tr>
+        <tr><td><a href="https://clusteryield.app/analysis-reference.html#CY004">CY004</a></td><td>SELECT *</td><td>11.9%</td><td>8.3%</td><td>0.70</td><td class="trend-flat">— flat</td></tr>
+      </tbody>
+    </table>
+    <div class="table-caption">Table 3 — Persistent or rising prevalence (T1 vs T4). These patterns don't fade. <a href="https://clusteryield.app/blog-visualizations.html">Explore the full interactive data →</a></div>
+
+    <p>Interesting! Six patterns are more prevalent in production code than in hobby code. After seeing this my first instinct was to assume I had false positives, so I made extra sure that the linter rules were correct (and this data in fact took several tries to get right). And so the question becomes, what does this data tell us?</p>
+
+    <p><strong>The answer is not straightforward.</strong> I spot checked all of these findings, and most of them are legit with a few exceptions. First, <a href="https://clusteryield.app/analysis-reference.html#CY007">CY007</a> (cross join). These joins are mostly intentional because mature projects use them deliberately for broadcasting small aggregates or generating candidate pairs. This explains the 1.77x ratio (T4 vs T1): beginners rarely need cross joins, while production recommender systems and feature engineering pipelines do. But what a code review will never tell you is whether those tables are silently growing over time, building up to a performance alert, or worse, a job outage. And this is the line of thinking that led me naturally to start rubbing up against the limits of what standard static analysis can give us.</p>
+
+    <p>Similarly, for <a href="https://clusteryield.app/analysis-reference.html#CY017">CY017</a> (window without partitionBy), my spot check revealed that in T4 repos these were all intentional. Developers knowingly use <code>Window.orderBy()</code> without <code>partitionBy()</code> because they genuinely need global ordering (sequential IDs, running totals, lag comparisons). However, the warning is still valid: this forces all data through a single partition, which is a scalability bottleneck.</p>
+
+    <p>One legitimate finding that surprised me is <a href="https://clusteryield.app/analysis-reference.html#CY025">CY025</a> (<code>.cache()</code> without <code>.unpersist()</code>). Some of the examples in the corpus are borderline due to the <code>.unpersist()</code> happening in a different function's scope, but the majority of them in T3/T4 repos are legit memory leaks. The invisible cost here manifests as memory pressure on the executors leaving less room for shuffling.</p>
+
+    <p>And so where does that leave us? Well, it leaves us with the realization that static analysis alone is not going to do a good job predicting problems that are going to cost us money, because we can't always flag an anti-pattern as "universally bad". An antipattern may be intentional because it is the only way of doing something code-wise, and only when an unpredictable state change in config, cluster, plan, or catalog happens, does it turn into a legitimately costly issue. So if we ever want to proactively prevent catastrophic waste in production, we need to either a) prohibit antipatterns altogether and handicap ourselves, or b) commit to spending time and developer effort doing due diligence on each pipeline and table involved to convince ourselves they're never going to change unexpectedly in the future, then verify that with robust monitoring in production. We all know how that goes. But what if there's something else we can do?</p>
+
+    <h2>What This Post Is Really About</h2>
+
+    <p>The data tells a story many of us already expected. Code-level anti-patterns are prevalent across the spectrum of sophistication and aren't always unintentional. The data tells us these patterns are prevalent across tiers, including production code. What the data can't tell us is whether they matter because "does this matter?" depends on information that isn't in the source code.</p>
+
+    <p>Static analysis has inherent limitations that won't completely solve the problem of Spark performance tuning because engineers need to weigh Spark pipeline decisions using all available signals:</p>
+
+    <ul class="signal-list">
+      <li>Static analysis sees the code.</li>
+      <li>The catalog knows the table sizes.</li>
+      <li>The optimizer chose the plan.</li>
+      <li>The config shaped the optimizer's choices.</li>
+      <li>The cost dashboard or systems tables have the cost data.</li>
+    </ul>
+
+    <p>These signals all matter, and they all inform the decisions engineers need to make. But the truth is it's easy to miss one or more signals at code review / job creation time because engineering time is valuable and there is an opportunity cost associated with gathering all the relevant data for every potentially costly change. It's not always worth investing the time in quantifying whether a code change will slow things down or cost more, and so what happens is an engineer will iterate until the performance looks "good enough". To quote a colleague:</p>
+
+    <blockquote>
+      <p>"If I have a choice between getting a developer to investigate why our database is slow, or getting them to build another feature, I'll pick the feature every time. We'll just pay to increase the size of the db."</p>
+    </blockquote>
+
+    <p>I admit that I myself have taken the easy road and resized a cluster when a deeper dive could have fixed the underlying issue. Not something I'm proud of, but when there are 12 more Airflow DAGs that you need to build, you fix the problem quickly and move on.</p>
+
+    <p>Right, let's get back to static analysis and where it falls short. As we just surmised, there is a whole class of problems that are invisible to a code linter by definition, and many antipatterns are intentional. So does that mean it's a dead end? Well, not really, no. It just means we need to find creative ways to use the data that is available about our Spark jobs so that we can answer two important questions:</p>
+
+    <ul class="question-list">
+      <li>Does this antipattern actually cost money?</li>
+      <li>What am I missing?</li>
+    </ul>
+
+    <h2>Filling In The Gaps</h2>
+
+    <p>In order to find out, we need to enrich static analysis with some of that sweet runtime data, which requires a little hacking. The first thing we need is a way to pull data off a running cluster. We need execution plans, catalog stats, spark config, and ideally, runtime metrics. We also need a good way to map source code locations from a running Databricks notebook. Most of that info can be exfiltrated thanks to a library I created here: <a href="https://github.com/clusteryieldanalytics/cluster-yield-snapshot">cluster-yield-snapshot</a>. The Databricks notebook I used for this demo is located in the examples folder.</p>
+
+    <pre><code class="language-python"># Pipeline 1 — fiscal period rollup
+events = spark.table("blog_demo.events")
+
+result = (
+    events
+    .filter(F.col("amount") > 0)
+    .groupBy("user_id", "category", "event_type")
+    .agg(
+        F.count("*").alias("event_count"),
+        F.sum("amount").alias("total_amount"),
+        F.avg("duration_sec").alias("avg_duration"),
+        F.max("event_date").alias("last_event_date"),
+    )
+)
+
+# Data quality check — how many users had events this period?
+row_count = result.count()
+print(f"Fiscal period rollup: {row_count:,} user-category groups")
+
+# Write the rollup
+result.write.mode("overwrite").saveAsTable("blog_demo.fiscal_events")</code></pre>
+
+    <pre><code class="language-python"># Pipeline 2 — high-value event summary
+events = spark.table("blog_demo.events")
+
+high_value = (
+    events
+    .filter(F.col("amount") > 100)
+    .groupBy("category", "event_type")
+    .agg(
+        F.sum("amount").alias("total"),
+        F.count("*").alias("cnt"),
+    )
+)
+high_value.write.mode("overwrite").saveAsTable("blog_demo.high_value_summary")</code></pre>
+
+    <pre><code class="language-python"># Pipeline 3 — three outputs from the same base DataFrame
+events = spark.table("blog_demo.events")
+
+high_value_events = (
+    events
+    .filter(F.col("amount") > 100)
+    .filter(F.col("is_converted") == True)
+)
+
+daily = (
+    high_value_events
+    .groupBy("event_date", "event_type")
+    .agg(F.sum("amount").alias("total"), F.count("*").alias("cnt"))
+)
+daily.write.mode("overwrite").saveAsTable("blog_demo.converted_daily")
+
+by_channel = (
+    high_value_events
+    .groupBy("utm_source", "utm_medium")
+    .agg(
+        F.sum("amount").alias("revenue"),
+        F.countDistinct("user_id").alias("unique_users"),
+    )
+)
+by_channel.write.mode("overwrite").saveAsTable("blog_demo.converted_channels")
+
+quality = (
+    high_value_events
+    .agg(
+        F.count("*").alias("total_rows"),
+        F.countDistinct("user_id").alias("unique_users"),
+        F.avg("amount").alias("avg_amount"),
+    )
+)
+quality.write.mode("overwrite").saveAsTable("blog_demo.converted_quality")</code></pre>
+
+    <p>Upon first glance, the code in the demo notebook looks benign. Read some data, do some aggregations, write some results. But it contains two very subtle problems that become very wasteful at large scale.</p>
+
+    <p>Now, when I run the linter on this code I get a single finding:</p>
+
+    <div class="finding-demo">
+<span class="hl">act3_antipattern.py:301:0:</span> <span class="sev-crit"><a href="https://clusteryield.app/analysis-reference.html#CY014" style="color:inherit;text-decoration:none">CY014</a> [critical]</span> DataFrame `result` has 2 terminal actions (.count(), .saveAsTable()) without .cache(). Each action recomputes the full lineage from source. Add .cache() before the first action, and .unpersist() when done.
+
+<span class="dim">Found 1 issue(s) (1 critical) in 1 file(s).</span>
+    </div>
+
+    <p>Cool, easy enough to fix. But when I enrich this with metadata from the snapshot, I get a much different picture. Let's assume that this job is already running in production and it takes 1.5 hours on a 16 node i3.2xlarge cluster. Not outside the realm of possibility by any stretch. Here's what you'd see:</p>
+
+    <!-- Findings report -->
+    <div class="emphasis-box">
+      <p>📊 <a href="https://clusteryield.app/blog/1/output.html" style="color:var(--accent);font-weight:600">View the full enriched findings report →</a></p>
+    </div>
+
+    <img src="img/report-header.png" alt="Report header showing summary badges: 5 critical, 1 warning" style="width:100%;border-radius:8px;margin:20px 0;border:1px solid var(--border);">
+
+    <img src="img/partition-pruning-findings.png" alt="Partition pruning findings showing critical severity with cost estimates" style="width:100%;border-radius:8px;margin:20px 0;border:1px solid var(--border);">
+
+    <img src="img/cy014.png" alt="CY014 finding with cost waterfall showing savings breakdown" style="width:100%;border-radius:8px;margin:20px 0;border:1px solid var(--border);">
+
+    <img src="img/summary.png" alt="Summary table showing total monthly cost and savings" style="width:100%;border-radius:8px;margin:20px 0;border:1px solid var(--border);">
+
+
+    <p>Aha! So we're missing a partition filter and Catalyst can't prune partitions. This is a pitfall that basic linting will never catch because it has no information about table structure, plan optimizations, or table size. At a larger scale (multiple TBs), the fact that we are scanning the full table <strong>six times</strong> starts to matter. From the report, we see the partition pruning detector firing on 5 write actions, plus a missing <code>.cache()</code>, each of the partition pruning findings are critical, and the missing <code>.cache()</code> is a warning. This is narrow, but it gets the point across that code reviews and static analysis alone aren't enough.</p>
+
+    <p>The linter saw one problem. The snapshot saw six. One tool found a missing .cache(). The other found that every scan in the pipeline was reading 365 partitions when it needed 30. Together, they identified $510/month in waste on a $688/month job. That's 74% of the total cost, hiding in a pipeline that passed code review, ran successfully every day, and never triggered an alert.</p>  
+    <p>That's the gap this post is about.  Not "here are some anti-patterns you should avoid." You already know those.  The gap isn't in any one tool.  Good linters exist.  Good monitoring exists.  Good cost dashboards exist.  The gap is that nobody connects them, and the right time to connect them is during code review, not after the bill arrives.  That's what I'm trying to build. </p>
+    
+    <p>Important note about costing: the demo <code>events</code> table I used during the snapshot run was 100GB and the full job run (excluding data seeding) took about 3 minutes on a 4 node i3.2xlarge cluster. If I were significantly richer than I am, I would consider scaling this up to several TB to measure the time taken.  But honestly, I don't really need to do that to demonstrate the concept. Partially because we've all seen jobs that take 90 minutes on 16 node clusters before, but mainly because it's easy to simulate what would happen to the cost simply by using different run times, cluster configurations, instance types, and DBU rates. So while the demo table is 100GB, the findings are the same at any scale; only the dollar amounts change. At 1TB running daily, the same partition pruning miss costs 10× more. The plan doesn't care how big the table is; it either prunes or it doesn't.</p>
+
+    <p>And so that's what you see above. I am showing you what this job WOULD cost if it took 90 minutes on a 16 node i3.2xlarge cluster. The key insight is that <strong>total cost</strong> is a function of time taken and cluster size, and the <strong>cost distribution</strong> is a function of the executed Spark plan and the data volume. It's true that time taken is <em>also</em> dependent on data volume of course, but it's much easier to do top-down cost distribution from a known quantity than it is to predict overall job duration based on data volume and Spark plan.  Maybe at some point that is a future problem I can look at in order to tune our cost model, but in the majority of cases, people already know what their jobs cost, they just don't necessarily know if that number is higher than it needs to be.  Our example shows total savings of $510/mo from a $688/mo job. That's definitely worth fixing.</p>
+
+    <p>Worth pointing out also is that the <a href="https://clusteryield.app/analysis-reference.html#CY014">CY014</a> finding from the linter is now quantified with a savings cost in the cost waterfall.  Since the extra action runs the same plan twice, it's half the remaining savings after all the other cost reduction steps are applied.</p>
+
+    <p>Now you might be thinking: doesn't Adaptive Query Execution (AQE) already handle tuning my workloads for me?  What about Dynamic Partition Pruning (DPP)?  And yes, both of those things help a LOT.  You should absolutely have them enabled. (You do have them enabled, right?) But they're solving a different part of the problem. AQE optimizes how your plan executes: it can promote a join to broadcast at runtime, coalesce small partitions, and handle data skew. DPP optimizes what gets scanned: it can propagate a filter through a join so Spark prunes partitions it wouldn't otherwise know to skip. Both are great at working with what the optimizer can infer from your query's structure. What neither can do is compensate for information that just isn't there. If your code scans a 365-partition table without any filter path to the partition column, no runtime optimization is going to invent that filter for you. If your pipeline writes three output tables from an uncached DataFrame, no optimizer is going to cache the computed result on your behalf. The full lineage re-executes for each action. Those are engineering decisions involving pipeline architecture and code, not optimizer decisions.</p>
+
+    <p>I've shown you why attacking the problem from all three sides is important.  Neither code analysis nor runtime optimization/snapshot inspection nor cost dashboards on their own give you complete information, but putting them together allows us to enrich static analysis findings at PR time to provide valuable, actionable insights to you before you merge your code.  Your code, your plans, and your costs live in three different tools owned by three different teams, and the interesting problems live in the intersection.  We simply require fresh snapshot data, reliable cost information, and CI integration, and now we can annotate pull requests with deep impact analysis.  By combining snapshot findings with linter findings, and mapping actual quantified cost impact directly to source code, we are able to tell you what your code <em>could</em> actually cost, and prevent it from costing more than it needs to.  It's about more than just what patterns it contains.</p>
+
+    <div class="cta-box">
+      <p>The linter is free: <code>pip install cylint</code></p>
+      <p>The snapshot library is <a href="https://github.com/clusteryieldanalytics/cluster-yield-snapshot">open source</a>!</p>
+      <p style="margin-top:12px; color: var(--text-dim); font-size:14px;">Want to see what the enriched analysis looks like on your own pipelines?<br>Click <strong>Get started</strong> above and send me an email.</p>
+    </div>
+
+  </div>
+</article>
+
+<!-- Footer -->
+<footer>
+  <div class="inner">
+    <p>&copy; 2026 Cluster Yield Analytics</p>
+    <p>Spark &amp; Databricks Cost Optimiza

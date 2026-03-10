@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Blog — Cluster Yield</title>
+<meta name="description" content="Insights on Spark cost optimization, PySpark anti-patterns, and production data engineering.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,400;0,500;0,600;0,700&family=JetBrains+Mono:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #0a0c10;
+  --bg-raised: #12151c;
+  --bg-card: #171b24;
+  --border: #1e2330;
+  --border-light: #2a3040;
+  --text: #c8cdd8;
+  --text-dim: #6b7280;
+  --text-bright: #e8ecf4;
+  --heading: #f0f2f7;
+  --accent: #3b82f6;
+  --accent-dim: #1d4ed8;
+  --green: #22c55e;
+  --mono: 'JetBrains Mono', monospace;
+  --sans: 'DM Sans', system-ui, sans-serif;
+}
+
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: var(--sans);
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.65;
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection { background: rgba(59,130,246,0.3); }
+
+/* — Nav — */
+nav {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+  background: rgba(10,12,16,0.85);
+  backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--border);
+}
+nav .inner {
+  max-width: 1080px; margin: 0 auto; padding: 0 24px;
+  display: flex; align-items: center; justify-content: space-between;
+  height: 60px;
+}
+.logo {
+  font-family: var(--mono); font-weight: 600; font-size: 15px;
+  color: var(--heading); letter-spacing: -0.02em;
+  text-decoration: none;
+}
+.logo span { color: var(--accent); }
+nav a.nav-link {
+  font-size: 14px; color: var(--text-dim); text-decoration: none;
+  transition: color 0.15s;
+}
+nav a.nav-link:hover { color: var(--text-bright); }
+.nav-links { display: flex; gap: 28px; align-items: center; }
+.btn-nav {
+  font-family: var(--mono); font-size: 13px; font-weight: 500;
+  padding: 8px 18px; border-radius: 6px;
+  background: var(--accent); color: #fff;
+  text-decoration: none; transition: background 0.15s;
+}
+.btn-nav:hover { background: var(--accent-dim); }
+
+/* — Blog index — */
+.blog-wrap {
+  padding: 100px 24px 60px;
+  max-width: 740px;
+  margin: 0 auto;
+}
+
+.blog-header {
+  margin-bottom: 48px;
+  padding-bottom: 28px;
+  border-bottom: 1px solid var(--border);
+}
+.blog-header h1 {
+  font-family: var(--mono);
+  font-size: 26px;
+  font-weight: 800;
+  color: var(--heading);
+  letter-spacing: -0.03em;
+  margin-bottom: 8px;
+}
+.blog-header p {
+  font-size: 15px;
+  color: var(--text-dim);
+}
+
+.post-card {
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 28px 32px;
+  margin-bottom: 20px;
+  transition: border-color 0.15s;
+  text-decoration: none;
+  display: block;
+}
+.post-card:hover {
+  border-color: var(--accent);
+}
+.post-card .post-date {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--text-dim);
+  margin-bottom: 8px;
+}
+.post-card h2 {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--heading);
+  margin-bottom: 10px;
+  line-height: 1.35;
+}
+.post-card p {
+  font-size: 14px;
+  color: var(--text);
+  line-height: 1.65;
+  margin-bottom: 12px;
+}
+.post-card .post-tags {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.post-card .tag {
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: rgba(59,130,246,0.08);
+  color: var(--accent);
+  border: 1px solid rgba(59,130,246,0.2);
+}
+
+.companion-links {
+  margin-top: 6px;
+  display: flex;
+  gap: 16px;
+}
+.companion-links a {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--accent);
+  text-decoration: none;
+}
+.companion-links a:hover {
+  text-decoration: underline;
+}
+
+/* — Footer — */
+footer {
+  border-top: 1px solid var(--border);
+  padding: 32px 24px;
+  text-align: center;
+}
+footer .inner {
+  max-width: 1080px; margin: 0 auto;
+  display: flex; justify-content: space-between; align-items: center;
+}
+footer p { font-size: 12px; color: var(--text-dim); }
+
+@media (max-width: 768px) {
+  .nav-links .nav-link { display: none; }
+  .blog-wrap { padding: 80px 16px 40px; }
+  .blog-header h1 { font-size: 20px; }
+  footer .inner { flex-direction: column; gap: 12px; text-align: center; }
+}
+</style>
+</head>
+<body>
+
+<!-- Nav -->
+<nav>
+  <div class="inner">
+    <a href="../index.html" class="logo">cluster<span>yield</span></a>
+    <div class="nav-links">
+      <a href="../index.html#how" class="nav-link">How it works</a>
+      <a href="../index.html#findings" class="nav-link">Sample findings</a>
+      <a href="../index.html#engage" class="nav-link">Pricing</a>
+      <a href="./index.html" class="nav-link" style="color:var(--text-bright)">Blog</a>
+      <a href="mailto:hello@clusteryield.app" class="btn-nav">Get started</a>
+    </div>
+  </div>
+</nav>
+
+<div class="blog-wrap">
+  <header class="blog-header">
+    <h1>Blog</h1>
+    <p>Insights on Spark cost optimization, PySpark anti-patterns, and production data engineering.</p>
+  </header>
+
+  <!-- Post 1 -->
+  <a href="1/blog-post-1.html" class="post-card">
+    <div class="post-date">March 2026</div>
+    <h2>We Linted 5,046 PySpark Projects on GitHub. Here's What Static Analysis Can and Can't Tell You.</h2>
+    <p>We scraped 5,046 PySpark repos, organized them by code maturity, and scanned for anti-patterns. The data splits into patterns that decline with experience and patterns that concentrate in production code. Then we showed what opens up when you enrich static analysis with runtime context.</p>
+    <div class="post-tags">
+      <span class="tag">corpus analysis</span>
+      <span class="tag">static analysis</span>
+      <span class="tag">cost optimization</span>
+    </div>
+  </a>
+  <div class="companion-links">
+    <a href="1/blog-visualizations.html">Interactive corpus data →</a>
+    <a href="1/output.html">Sample findings report →</a>
+  </div>
+
+</div>
+
+<!-- Footer -->
+<footer>
+  <div class="inner">
+    <p>&copy; 2026 Cluster Yield Analytics</p>
+    <p>Spark &amp; Databricks Cost Optimization</p>
+  </div>
+</footer>
+
+</body>
+</html>

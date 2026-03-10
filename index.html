@@ -443,7 +443,7 @@ footer a:hover { color: var(--text); }
       <a href="#how" class="nav-link">How it works</a>
       <a href="#findings" class="nav-link">Sample findings</a>
       <a href="#engage" class="nav-link">Pricing</a>
-      <a href="blog-visualizations.html" class="nav-link">Corpus Analysis</a>
+      <a href="blog/index.html" class="nav-link">Blog</a>
       <a href="mailto:hello@clusteryield.app" class="btn-nav">Get started</a>
     </div>
   </div>
@@ -474,12 +474,12 @@ footer a:hover { color: var(--text); }
       <div class="problem-card">
         <span class="icon">⊘</span>
         <h3>Missed broadcast joins</h3>
-        <p>A 12 MB lookup table gets shuffled alongside a 500 GB fact table because the optimizer doesn't know the table is small. Two unnecessary shuffles on every run.</p>
+        <p>A 12 MB lookup table gets shuffled alongside a 500 GB fact table because the broadcast threshold was lowered or the table's stats are stale. Two unnecessary shuffles on every run.</p>
       </div>
       <div class="problem-card">
         <span class="icon">◫</span>
         <h3>Unfiltered partition scans</h3>
-        <p>Your query needs January, but Spark reads all 365 partitions because the filter doesn't align with the partition column. 75% of the I/O is wasted.</p>
+        <p>Your query needs one month of data, but Spark reads all 365 daily partitions because the filter doesn't align with the partition column. Over 90% of the I/O is wasted.</p>
       </div>
       <div class="problem-card">
         <span class="icon">⚠</span>
@@ -514,7 +514,7 @@ footer a:hover { color: var(--text); }
         </div>
         <div class="report-rec-label">What to do:</div>
         <pre class="report-code">spark.table("prod.analytics.orders")
-  .filter(col("order_date") >= "2025-01-01")  // enables partition pruning
+  .filter(col("order_date") >= "2025-01-01")  # enables partition pruning
   .select(...)</pre>
         <details>
           <summary>Raw details</summary>
@@ -536,10 +536,10 @@ footer a:hover { color: var(--text); }
           The Inner join on <code>customer_id</code> between <code>prod.analytics.orders</code> and <code>prod.analytics.customers</code> is using SortMergeJoin, which shuffles both sides. But the right input (<code>prod.analytics.customers</code>) is only 14.2 MB — small enough to broadcast. Broadcasting eliminates the shuffle on the large side, typically cutting this join's cost by 50% or more.
         </div>
         <div class="report-rec-label">What to do:</div>
-        <pre class="report-code">import org.apache.spark.sql.functions.broadcast
+        <pre class="report-code">from pyspark.sql.functions import broadcast
 
-// Broadcast the small table (14.2 MB) to avoid a shuffle
-orders.join(broadcast(customers), Seq("customer_id"))</pre>
+# Broadcast the small table (14.2 MB) to avoid a shuffle
+orders.join(broadcast(customers), on="customer_id")</pre>
         <details>
           <summary>Raw details</summary>
           <table class="report-meta-table">
@@ -588,7 +588,7 @@ orders.join(broadcast(customers), Seq("customer_id"))</pre>
 
       <div class="report-footer">
         Total monthly cost across 12 plans: <strong style="color: var(--text-bright)">$34,200.00</strong> (confidence: high)<br>
-        Cluster Yield CI — analyzed 847 plan nodes with 5 detectors | Spark 3.5.1, Databricks 14.3 LTS.
+        Cluster Yield CI — plan analysis with 7 detectors | Compatible with Spark 3.x and 4.x on Databricks.
       </div>
     </div>
   </div>
@@ -646,8 +646,8 @@ orders.join(broadcast(customers), Seq("customer_id"))</pre>
     <div class="oss-block">
       <div>
         <h3>Open-source PySpark linter</h3>
-        <p>A free static analysis tool that catches common PySpark anti-patterns before they reach production. No Spark runtime required — runs on source code in CI, pre-commit, or your terminal.</p>
-        <p>Detects <code>.collect()</code> without filtering, <code>.withColumn()</code> in loops, <code>SELECT *</code>, implicit cartesians, and more. New rules shipping regularly.</p>
+        <p>A free static analysis tool that catches common PySpark anti-patterns before they reach production. No Spark runtime required — runs on source code in CI, pre-commit, or your terminal. 20 rules and growing.</p>
+        <p>Detects <code>.collect()</code> without filtering, <code>.withColumn()</code> in loops, implicit cartesians, missing <code>.unpersist()</code>, schema inference waste, and more. See the full <a href="analysis-reference.html" style="color:var(--accent)">analysis reference</a>.</p>
         <p style="margin-top: 16px;">
           <a href="https://pypi.org/project/cylint/" class="hero-cta" style="font-size: 13px; padding: 10px 20px; display: inline-flex;">pip install cylint</a>
           <a href="https://github.com/clusteryieldanalytics/cylint" class="hero-secondary" style="font-size: 13px; padding: 10px 20px; display: inline-flex; margin-left: 8px;">GitHub</a>
@@ -659,7 +659,7 @@ orders.join(broadcast(customers), Seq("customer_id"))</pre>
         <br>
         <div class="finding-line">src/orders.py:14  CY001  .collect() on unfiltered DataFrame</div>
         <div class="finding-line">src/orders.py:23  CY003  .withColumn() in loop (8 iterations)</div>
-        <div class="finding-line">src/etl.py:7&nbsp;&nbsp;&nbsp;  CY004  SELECT * — fetch only needed columns</div>
+        <div class="finding-line">src/etl.py:7&nbsp;&nbsp;&nbsp;  CY004  SELECT * flows into write without projection</div>
         <div class="finding-line">src/etl.py:31&nbsp;  CY009  UDF in .filter() blocks pushdown</div>
         <br>
         <div class="count">4 findings in 2 files</div>
@@ -676,7 +676,7 @@ orders.join(broadcast(customers), Seq("customer_id"))</pre>
         <span class="check">✓</span> Read-only analysis — we never access your data
       </div>
       <div class="trust-item">
-        <span class="check">✓</span> Works on Databricks, EMR, Dataproc
+        <span class="check">✓</span> Databricks first — EMR &amp; Dataproc on roadmap
       </div>
       <div class="trust-item">
         <span class="check">✓</span> Spark Connect &amp; serverless compatible

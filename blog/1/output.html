@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cluster Yield CI — Enrichment Report</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0a0c10;
+  --bg-raised: #12151c;
+  --bg-card: #171b24;
+  --border: #1e2330;
+  --border-light: #2a3040;
+  --text: #c8cdd8;
+  --text-dim: #6b7280;
+  --text-bright: #e8ecf4;
+  --heading: #f0f2f7;
+  --accent: #3b82f6;
+  --accent-dim: #1d4ed8;
+  --green: #22c55e;
+  --green-dim: rgba(34,197,94,0.12);
+  --amber: #f59e0b;
+  --amber-dim: rgba(245,158,11,0.12);
+  --red: #ef4444;
+  --red-dim: rgba(239,68,68,0.10);
+  --blue: #3b82f6;
+  --blue-dim: rgba(59,130,246,0.10);
+  --radius: 8px;
+  --font-sans: 'DM Sans', system-ui, -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', Consolas, monospace;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: var(--font-sans);
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+.container {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 48px 24px;
+}
+
+/* ── Header ─────────────────────────────────── */
+.report-header {
+  margin-bottom: 32px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid var(--border);
+}
+.logo {
+  font-family: var(--font-mono);
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--heading);
+  letter-spacing: -0.5px;
+}
+.logo .accent { color: var(--accent); }
+.subtitle {
+  font-size: 14px;
+  color: var(--text-dim);
+  margin-top: 4px;
+  font-weight: 500;
+}
+
+/* ── Badges ─────────────────────────────────── */
+.badges { display: flex; gap: 10px; margin-bottom: 32px; }
+.badge {
+  display: inline-block;
+  padding: 6px 14px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+}
+.badge-red { background: var(--red-dim); color: var(--red); border: 1px solid rgba(239,68,68,0.25); }
+.badge-amber { background: var(--amber-dim); color: var(--amber); border: 1px solid rgba(245,158,11,0.25); }
+.badge-blue { background: var(--blue-dim); color: var(--blue); border: 1px solid rgba(59,130,246,0.25); }
+.badge-green { background: var(--green-dim); color: var(--green); border: 1px solid rgba(34,197,94,0.25); }
+
+/* ── Plan sections ──────────────────────────── */
+.plan-section {
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 28px;
+  margin-bottom: 24px;
+}
+.plan-header {
+  font-family: var(--font-sans);
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--heading);
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.plan-header code {
+  font-family: var(--font-mono);
+  font-size: 15px;
+  color: var(--accent);
+  background: var(--bg-card);
+  padding: 3px 10px;
+  border-radius: 4px;
+  border: 1px solid var(--border-light);
+}
+.plan-cost {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  color: var(--text-dim);
+  font-weight: 500;
+}
+.exec-badge {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--amber);
+  background: var(--amber-dim);
+  padding: 3px 8px;
+  border-radius: 4px;
+  border: 1px solid rgba(245,158,11,0.2);
+}
+
+/* ── Waterfall table ─────────────────────────── */
+.waterfall-header {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-dim);
+  margin-bottom: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.waterfall-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+  margin-bottom: 28px;
+}
+.waterfall-table th {
+  text-align: left;
+  padding: 10px 12px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--text-dim);
+  border-bottom: 2px solid var(--border);
+}
+.waterfall-table th:first-child { text-align: right; width: 36px; }
+.waterfall-table th:nth-child(4),
+.waterfall-table th:nth-child(5) { text-align: right; }
+.waterfall-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-bright);
+}
+.waterfall-table td:first-child {
+  text-align: right;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-dim);
+  width: 36px;
+}
+.waterfall-table td.money {
+  text-align: right;
+  font-family: var(--font-mono);
+  font-size: 13px;
+}
+/* Severity accent on the Rule column only */
+.waterfall-table tr.sev-crit > td:nth-child(2) { border-left: 3px solid var(--red); }
+.waterfall-table tr.sev-warn > td:nth-child(2) { border-left: 3px solid var(--amber); }
+.waterfall-table tr.sev-info > td:nth-child(2) { border-left: 3px solid var(--blue); }
+.waterfall-table .total-row td {
+  border-bottom: none;
+  border-top: 2px solid var(--border-light);
+  font-weight: 600;
+}
+.rule-link {
+  color: var(--accent);
+  text-decoration: none;
+  transition: color 0.15s;
+}
+.rule-link:hover { color: var(--text-bright); text-decoration: underline; }
+.rule-link code {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  background: var(--bg-card);
+  padding: 2px 6px;
+  border-radius: 3px;
+  border: 1px solid var(--border-light);
+}
+.fix-link {
+  color: var(--text-bright);
+  text-decoration: none;
+  border-bottom: 1px dashed var(--border-light);
+  transition: border-color 0.15s;
+}
+.fix-link:hover { border-bottom-color: var(--accent); }
+.origin {
+  font-size: 10px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* ── Finding cards ──────────────────────────── */
+.finding-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px 24px;
+  margin-bottom: 16px;
+  transition: border-color 0.15s;
+}
+.finding-card:target { border-color: var(--accent); }
+.finding-card.sev-crit { border-left: 3px solid var(--red); }
+.finding-card.sev-warn { border-left: 3px solid var(--amber); }
+.finding-card.sev-info { border-left: 3px solid var(--blue); }
+.finding-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--heading);
+  margin-bottom: 8px;
+  line-height: 1.4;
+}
+.finding-title code {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  background: var(--bg);
+  padding: 2px 6px;
+  border-radius: 3px;
+  border: 1px solid var(--border);
+  font-weight: 400;
+}
+.sev-badge {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 3px;
+  letter-spacing: 0.5px;
+  vertical-align: middle;
+  margin-right: 4px;
+}
+.sev-badge.sev-crit { background: var(--red-dim); color: var(--red); }
+.sev-badge.sev-warn { background: var(--amber-dim); color: var(--amber); }
+.sev-badge.sev-info { background: var(--blue-dim); color: var(--blue); }
+.rule-origin {
+  font-size: 12px;
+  color: var(--text-dim);
+  margin-bottom: 12px;
+}
+.rule-origin a { color: var(--accent); text-decoration: none; }
+.rule-origin a:hover { text-decoration: underline; }
+.rule-origin code {
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+.cost-line {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--green);
+  margin-bottom: 12px;
+}
+.finding-desc {
+  font-size: 14px;
+  color: var(--text);
+  margin-bottom: 12px;
+  line-height: 1.7;
+}
+.recommendation {
+  font-size: 14px;
+  color: var(--text);
+  margin-bottom: 12px;
+  line-height: 1.7;
+}
+.finding-desc pre, .recommendation pre {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 14px 16px;
+  margin: 10px 0;
+  overflow-x: auto;
+}
+.finding-desc code, .recommendation code {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--text-bright);
+  background: var(--bg);
+  padding: 2px 6px;
+  border-radius: 3px;
+  border: 1px solid var(--border);
+}
+.finding-desc pre code, .recommendation pre code {
+  background: none;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+}
+.source-loc {
+  font-size: 12px;
+  color: var(--text-dim);
+  margin-top: 8px;
+}
+.source-loc code {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--accent);
+}
+
+/* ── Summary ────────────────────────────────── */
+.summary-section {
+  margin-top: 32px;
+  padding-top: 28px;
+  border-top: 1px solid var(--border);
+}
+.summary-section h2 {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--heading);
+  margin-bottom: 16px;
+}
+.summary-table {
+  width: 100%;
+  max-width: 420px;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+.summary-table td {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+}
+.summary-table td:first-child { color: var(--text-dim); }
+.summary-table td:last-child {
+  text-align: right;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--text-bright);
+  font-weight: 500;
+}
+.summary-table tr.highlight td {
+  color: var(--green);
+  font-weight: 600;
+}
+.summary-table tr.highlight td:first-child { color: var(--green); }
+.dim { color: var(--text-dim); font-size: 14px; margin-bottom: 16px; }
+.unmatched {
+  margin-top: 12px;
+  font-size: 13px;
+  color: var(--text-dim);
+}
+.unmatched summary { cursor: pointer; }
+.unmatched ul { margin-top: 8px; padding-left: 20px; }
+.unmatched code { font-family: var(--font-mono); font-size: 12px; }
+.footer {
+  font-size: 12px;
+  color: var(--text-dim);
+  margin-top: 24px;
+  font-style: italic;
+}
+
+/* ── Smooth scroll ──────────────────────────── */
+html { scroll-behavior: smooth; }
+</style>
+</head>
+<body><div class="container">
+<div class="report-header"><div class="logo">cluster<span class="accent">yield</span><div class="subtitle">Enrichment Report</div></div>
+<div class="badges"><span class="badge badge-red">6 critical</span><span class="badge badge-amber">1 warning</span></div>
+<div class="plan-section"><h2 class="plan-header"><code>count-1</code> <span class="plan-cost">$188/month</span> <span class="exec-badge">2 executions</span></h2>
+<div class="waterfall-header">Savings Waterfall &mdash; Plan budget: <strong>$188/month</strong></div>
+<table class="waterfall-table"><thead><tr><th>#</th><th>Rule</th><th>Fix</th><th>Savings</th><th>Remaining</th></tr></thead><tbody>
+<tr class="sev-crit"><td>1</td><td><a href="https://clusteryield.app/analysis-reference.html#partition-pruning" class="rule-link" target="_blank"><code>partition-pruning</code></a> <span class="origin">snapshot</span></td><td><a href="#partition-pruning-count-1-cluster-yield-sandbox-blog-demo-events" class="fix-link">CRIT Add partition filter on events</a></td><td class="money">$132</td><td class="money">$57</td></tr>
+<tr class="sev-warn"><td>2</td><td><a href="https://clusteryield.app/analysis-reference.html#CY014" class="rule-link" target="_blank"><code>CY014</code></a> <span class="origin">linter</span></td><td><a href="#cy014-count-1" class="fix-link">WARN Cache to eliminate 1 repeat run</a></td><td class="money">$28</td><td class="money">$28</td></tr>
+<tr class="total-row"><td></td><td></td><td><strong>Total</strong></td><td class="money"><strong>$160</strong></td><td class="money"><strong>$28</strong></td></tr>
+</tbody></table>
+<div class="finding-card sev-crit" id="partition-pruning-count-1-cluster-yield-sandbox-blog-demo-events">
+<div class="finding-title"><span class="sev-badge sev-crit">CRITICAL</span> [count-1] Full scan on <code>cluster_yield_sandbox.blog_demo.events</code> — no filter on partition column <code>event_date</code></div>
+<div class="rule-origin">snapshot rule <a href="https://clusteryield.app/analysis-reference.html#partition-pruning" target="_blank"><code>partition-pruning</code></a></div>
+<div class="cost-line">Estimated savings: $132/month</div>
+<div class="finding-desc">Table <code>cluster_yield_sandbox.blog_demo.events</code> is partitioned by <code>event_date</code> but the scan has no partition filters. Spark will read every partition of the table. The full table is 94.6 GB.<br>
+<br>
+No filter on <code>event_date</code> was found anywhere in the plan.<br>
+<br>
+<strong>AQE note:</strong> Adaptive Query Execution is enabled but cannot help here — partition pruning is a scan-time decision that occurs before AQE's runtime optimizations. This must be fixed in the query.<br>
+</div>
+<div class="recommendation"><strong>Recommendation:</strong> Add a WHERE clause on the partition column:<br>
+<br>
+<pre><code>spark.table(&quot;cluster_yield_sandbox.blog_demo.events&quot;)
+  .filter(col(&quot;event_date&quot;) === &quot;2025-01-15&quot;)  // enables partition pruning
+  .select(...)
+</code></pre>
+<br>
+In SQL:<br>
+<pre><code>SELECT * FROM cluster_yield_sandbox.blog_demo.events WHERE event_date = '2025-01-15'
+</code></pre>
+</div>
+<div class="source-loc">Source: <code>act3_antipattern.py:301</code></div>
+</div>
+<div class="finding-card sev-warn" id="cy014-count-1">
+<div class="finding-title"><span class="sev-badge sev-warn">WARNING</span> DataFrame <code>result</code> has 2 terminal actions (.count(), .saveAsTable()) without .cache(). Each action recomputes the full lineage from source. Add .cache() before the first action, and .unpersist() when done.</div>
+<div class="rule-origin">linter rule <a href="https://clusteryield.app/analysis-reference.html#CY014" target="_blank"><code>CY014</code></a></div>
+<div class="cost-line">Estimated savings: $28/month</div>
+<div class="finding-desc">DataFrame <code>result</code> has 2 terminal actions (.count(), .saveAsTable()) without .cache(). Each action recomputes the full lineage from source. Add .cache() before the first action, and .unpersist() when done.<br>
+</div>
+<div class="source-loc">Source: <code>act3_antipattern.py:301</code></div>
+</div>
+</div>
+<div class="plan-section"><h2 class="plan-header"><code>write-saveAsTable-blog_demo.converted_channels</code> <span class="plan-cost">$183/month</span></h2>
+<div class="waterfall-header">Savings Waterfall &mdash; Plan budget: <strong>$183/month</strong></div>
+<table class="waterfall-table"><thead><tr><th>#</th><th>Rule</th><th>Fix</th><th>Savings</th><th>Remaining</th></tr></thead><tbody>
+<tr class="sev-crit"><td>1</td><td><a href="https://clusteryield.app/analysis-reference.html#partition-pruning" class="rule-link" target="_blank"><code>partition-pruning</code></a> <span class="origin">snapshot</span></td><td><a href="#partition-pruning-write-saveastable-blog-demo-converted-channels-cluster-yield-sandbox-blog-demo-events" class="fix-link">CRIT Add partition filter on events</a></td><td class="money">$128</td><td class="money">$55</td></tr>
+<tr class="total-row"><td></td><td></td><td><strong>Total</strong></td><td class="money"><strong>$128</strong></td><td class="money"><strong>$55</strong></td></tr>
+</tbody></table>
+<div class="finding-card sev-crit" id="partition-pruning-write-saveastable-blog-demo-converted-channels-cluster-yield-sandbox-blog-demo-events">
+<div class="finding-title"><span class="sev-badge sev-crit">CRITICAL</span> [write-saveAsTable-blog_demo.converted_channels] Full scan on <code>cluster_yield_sandbox.blog_demo.events</code> — no filter on partition column <code>event_date</code></div>
+<div class="rule-origin">snapshot rule <a href="https://clusteryield.app/analysis-reference.html#partition-pruning" target="_blank"><code>partition-pruning</code></a></div>
+<div class="cost-line">Estimated savings: $128/month</div>
+<div class="finding-desc">Table <code>cluster_yield_sandbox.blog_demo.events</code> is partitioned by <code>event_date</code> but the scan has no partition filters. Spark will read every partition of the table. The full table is 94.6 GB.<br>
+<br>
+No filter on <code>event_date</code> was found anywhere in the plan.<br>
+<br>
+<strong>AQE note:</strong> Adaptive Query Execution is enabled but cannot help here — partition pruning is a scan-time decision that occurs before AQE's runtime optimizations. This must be fixed in the query.<br>
+</div>
+<div class="recommendation"><strong>Recommendation:</strong> Add a WHERE clause on the partition column:<br>
+<br>
+<pre><code>spark.table(&quot;cluster_yield_sandbox.blog_demo.events&quot;)
+  .filter(col(&quot;event_date&quot;) === &quot;2025-01-15&quot;)  // enables partition pruning
+  .select(...)
+</code></pre>
+<br>
+In SQL:<br>
+<pre><code>SELECT * FROM cluster_yield_sandbox.blog_demo.events WHERE event_date = '2025-01-15'
+</code></pre>
+</div>
+<div class="source-loc">Source: <code>act3_antipattern.py:351</code></div>
+</div>
+</div>
+<div class="plan-section"><h2 class="plan-header"><code>write-saveAsTable-blog_demo.converted_quality</code> <span class="plan-cost">$110/month</span></h2>
+<div class="waterfall-header">Savings Waterfall &mdash; Plan budget: <strong>$110/month</strong></div>
+<table class="waterfall-table"><thead><tr><th>#</th><th>Rule</th><th>Fix</th><th>Savings</th><th>Remaining</th></tr></thead><tbody>
+<tr class="sev-crit"><td>1</td><td><a href="https://clusteryield.app/analysis-reference.html#partition-pruning" class="rule-link" target="_blank"><code>partition-pruning</code></a> <span class="origin">snapshot</span></td><td><a href="#partition-pruning-write-saveastable-blog-demo-converted-quality-cluster-yield-sandbox-blog-demo-events" class="fix-link">CRIT Add partition filter on events</a></td><td class="money">$77</td><td class="money">$33</td></tr>
+<tr class="total-row"><td></td><td></td><td><strong>Total</strong></td><td class="money"><strong>$77</strong></td><td class="money"><strong>$33</strong></td></tr>
+</tbody></table>
+<div class="finding-card sev-crit" id="partition-pruning-write-saveastable-blog-demo-converted-quality-cluster-yield-sandbox-blog-demo-events">
+<div class="finding-title"><span class="sev-badge sev-crit">CRITICAL</span> [write-saveAsTable-blog_demo.converted_quality] Full scan on <code>cluster_yield_sandbox.blog_demo.events</code> — no filter on partition column <code>event_date</code></div>
+<div class="rule-origin">snapshot rule <a href="https://clusteryield.app/analysis-reference.html#partition-pruning" target="_blank"><code>partition-pruning</code></a></div>
+<div class="cost-line">Estimated savings: $77/month</div>
+<div class="finding-desc">Table <code>cluster_yield_sandbox.blog_demo.events</code> is partitioned by <code>event_date</code> but the scan has no partition filters. Spark will read every partition of the table. The full table is 94.6 GB.<br>
+<br>
+No filter on <code>event_date</code> was found anywhere in the plan.<br>
+<br>
+<strong>AQE note:</strong> Adaptive Query Execution is enabled but cannot help here — partition pruning is a scan-time decision that occurs before AQE's runtime optimizations. This must be fixed in the query.<br>
+</div>
+<div class="recommendation"><strong>Recommendation:</strong> Add a WHERE clause on the partition column:<br>
+<br>
+<pre><code>spark.table(&quot;cluster_yield_sandbox.blog_demo.events&quot;)
+  .filter(col(&quot;event_date&quot;) === &quot;2025-01-15&quot;)  // enables partition pruning
+  .select(...)
+</code></pre>
+<br>
+In SQL:<br>
+<pre><code>SELECT * FROM cluster_yield_sandbox.blog_demo.events WHERE event_date = '2025-01-15'
+</code></pre>
+</div>
+<div class="source-loc">Source: <code>act3_antipattern.py:361</code></div>
+</div>
+</div>
+<div class="plan-section"><h2 class="plan-header"><code>write-saveAsTable-blog_demo.fiscal_events</code> <span class="plan-cost">$94/month</span></h2>
+<div class="waterfall-header">Savings Waterfall &mdash; Plan budget: <strong>$94/month</strong></div>
+<table class="waterfall-table"><thead><tr><th>#</th><th>Rule</th><th>Fix</th><th>Savings</th><th>Remaining</th></tr></thead><tbody>
+<tr class="sev-crit"><td>1</td><td><a href="https://clusteryield.app/analysis-reference.html#partition-pruning" class="rule-link" target="_blank"><code>partition-pruning</code></a> <span class="origin">snapshot</span></td><td><a href="#partition-pruning-write-saveastable-blog-demo-fiscal-events-cluster-yield-sandbox-blog-demo-events" class="fix-link">CRIT Add partition filter on events</a></td><td class="money">$66</td><td class="money">$28</td></tr>
+<tr class="total-row"><td></td><td></td><td><strong>Total</strong></td><td class="money"><strong>$66</strong></td><td class="money"><strong>$28</strong></td></tr>
+</tbody></table>
+<div class="finding-card sev-crit" id="partition-pruning-write-saveastable-blog-demo-fiscal-events-cluster-yield-sandbox-blog-demo-events">
+<div class="finding-title"><span class="sev-badge sev-crit">CRITICAL</span> [write-saveAsTable-blog_demo.fiscal_events] Full scan on <code>cluster_yield_sandbox.blog_demo.events</code> — no filter on partition column <code>event_date</code></div>
+<div class="rule-origin">snapshot rule <a href="https://clusteryield.app/analysis-reference.html#partition-pruning" target="_blank"><code>partition-pruning</code></a></div>
+<div class="cost-line">Estimated savings: $66/month</div>
+<div class="finding-desc">Table <code>cluster_yield_sandbox.blog_demo.events</code> is partitioned by <code>event_date</code> but the scan has no partition filters. Spark will read every partition of the table. The full table is 94.6 GB.<br>
+<br>
+No filter on <code>event_date</code> was found anywhere in the plan.<br>
+<br>
+<strong>AQE note:</strong> Adaptive Query Execution is enabled but cannot help here — partition pruning is a scan-time decision that occurs before AQE's runtime optimizations. This must be fixed in the query.<br>
+</div>
+<div class="recommendation"><strong>Recommendation:</strong> Add a WHERE clause on the partition column:<br>
+<br>
+<pre><code>spark.table(&quot;cluster_yield_sandbox.blog_demo.events&quot;)
+  .filter(col(&quot;event_date&quot;) === &quot;2025-01-15&quot;)  // enables partition pruning
+  .select(...)
+</code></pre>
+<br>
+In SQL:<br>
+<pre><code>SELECT * FROM cluster_yield_sandbox.blog_demo.events WHERE event_date = '2025-01-15'
+</code></pre>
+</div>
+<div class="source-loc">Source: <code>act3_antipattern.py:305</code></div>
+</div>
+</div>
+<div class="plan-section"><h2 class="plan-header"><code>write-saveAsTable-blog_demo.converted_daily</code> <span class="plan-cost">$57/month</span></h2>
+<div class="waterfall-header">Savings Waterfall &mdash; Plan budget: <strong>$57/month</strong></div>
+<table class="waterfall-table"><thead><tr><th>#</th><th>Rule</th><th>Fix</th><th>Savings</th><th>Remaining</th></tr></thead><tbody>
+<tr class="sev-crit"><td>1</td><td><a href="https://clusteryield.app/analysis-reference.html#partition-pruning" class="rule-link" target="_blank"><code>partition-pruning</code></a> <span class="origin">snapshot</span></td><td><a href="#partition-pruning-write-saveastable-blog-demo-converted-daily-cluster-yield-sandbox-blog-demo-events" class="fix-link">CRIT Add partition filter on events</a></td><td class="money">$40</td><td class="money">$17</td></tr>
+<tr class="total-row"><td></td><td></td><td><strong>Total</strong></td><td class="money"><strong>$40</strong></td><td class="money"><strong>$17</strong></td></tr>
+</tbody></table>
+<div class="finding-card sev-crit" id="partition-pruning-write-saveastable-blog-demo-converted-daily-cluster-yield-sandbox-blog-demo-events">
+<div class="finding-title"><span class="sev-badge sev-crit">CRITICAL</span> [write-saveAsTable-blog_demo.converted_daily] Full scan on <code>cluster_yield_sandbox.blog_demo.events</code> — no filter on partition column <code>event_date</code></div>
+<div class="rule-origin">snapshot rule <a href="https://clusteryield.app/analysis-reference.html#partition-pruning" target="_blank"><code>partition-pruning</code></a></div>
+<div class="cost-line">Estimated savings: $40/month</div>
+<div class="finding-desc">Table <code>cluster_yield_sandbox.blog_demo.events</code> is partitioned by <code>event_date</code> but the scan has no partition filters. Spark will read every partition of the table. The full table is 94.6 GB.<br>
+<br>
+No filter on <code>event_date</code> was found anywhere in the plan.<br>
+<br>
+<strong>AQE note:</strong> Adaptive Query Execution is enabled but cannot help here — partition pruning is a scan-time decision that occurs before AQE's runtime optimizations. This must be fixed in the query.<br>
+</div>
+<div class="recommendation"><strong>Recommendation:</strong> Add a WHERE clause on the partition column:<br>
+<br>
+<pre><code>spark.table(&quot;cluster_yield_sandbox.blog_demo.events&quot;)
+  .filter(col(&quot;event_date&quot;) === &quot;2025-01-15&quot;)  // enables partition pruning
+  .select(...)
+</code></pre>
+<br>
+In SQL:<br>
+<pre><code>SELECT * FROM cluster_yield_sandbox.blog_demo.events WHERE event_date = '2025-01-15'
+</code></pre>
+</div>
+<div class="source-loc">Source: <code>act3_antipattern.py:341</code></div>
+</div>
+</div>
+<div class="plan-section"><h2 class="plan-header"><code>write-saveAsTable-blog_demo.high_value_summary</code> <span class="plan-cost">$57/month</span></h2>
+<div class="waterfall-header">Savings Waterfall &mdash; Plan budget: <strong>$57/month</strong></div>
+<table class="waterfall-table"><thead><tr><th>#</th><th>Rule</th><th>Fix</th><th>Savings</th><th>Remaining</th></tr></thead><tbody>
+<tr class="sev-crit"><td>1</td><td><a href="https://clusteryield.app/analysis-reference.html#partition-pruning" class="rule-link" target="_blank"><code>partition-pruning</code></a> <span class="origin">snapshot</span></td><td><a href="#partition-pruning-write-saveastable-blog-demo-high-value-summary-cluster-yield-sandbox-blog-demo-events" class="fix-link">CRIT Add partition filter on events</a></td><td class="money">$40</td><td class="money">$17</td></tr>
+<tr class="total-row"><td></td><td></td><td><strong>Total</strong></td><td class="money"><strong>$40</strong></td><td class="money"><strong>$17</strong></td></tr>
+</tbody></table>
+<div class="finding-card sev-crit" id="partition-pruning-write-saveastable-blog-demo-high-value-summary-cluster-yield-sandbox-blog-demo-events">
+<div class="finding-title"><span class="sev-badge sev-crit">CRITICAL</span> [write-saveAsTable-blog_demo.high_value_summary] Full scan on <code>cluster_yield_sandbox.blog_demo.events</code> — no filter on partition column <code>event_date</code></div>
+<div class="rule-origin">snapshot rule <a href="https://clusteryield.app/analysis-reference.html#partition-pruning" target="_blank"><code>partition-pruning</code></a></div>
+<div class="cost-line">Estimated savings: $40/month</div>
+<div class="finding-desc">Table <code>cluster_yield_sandbox.blog_demo.events</code> is partitioned by <code>event_date</code> but the scan has no partition filters. Spark will read every partition of the table. The full table is 94.6 GB.<br>
+<br>
+No filter on <code>event_date</code> was found anywhere in the plan.<br>
+<br>
+<strong>AQE note:</strong> Adaptive Query Execution is enabled but cannot help here — partition pruning is a scan-time decision that occurs before AQE's runtime optimizations. This must be fixed in the query.<br>
+</div>
+<div class="recommendation"><strong>Recommendation:</strong> Add a WHERE clause on the partition column:<br>
+<br>
+<pre><code>spark.table(&quot;cluster_yield_sandbox.blog_demo.events&quot;)
+  .filter(col(&quot;event_date&quot;) === &quot;2025-01-15&quot;)  // enables partition pruning
+  .select(...)
+</code></pre>
+<br>
+In SQL:<br>
+<pre><code>SELECT * FROM cluster_yield_sandbox.blog_demo.events WHERE event_date = '2025-01-15'
+</code></pre>
+</div>
+<div class="source-loc">Source: <code>act3_antipattern.py:321</code></div>
+</div>
+</div>
+<div class="summary-section"><h2>Summary</h2><table class="summary-table"><tbody>
+<tr><td>Plans analyzed</td><td>6</td></tr><tr><td>Plans costed</td><td>6</td></tr><tr><td>Total monthly cost</td><td>$688</td></tr><tr class="highlight"><td>Total monthly savings</td><td>$510</td></tr><tr><td>Confidence</td><td>high</td></tr><tr><td>Snapshots matched</td><td>1</td></tr>
+</tbody></table>
+<div class="footer">Cluster Yield CI &mdash; enrichment report across 6 plans (confidence: high)</div>
+</div>
+</div></body></html>
