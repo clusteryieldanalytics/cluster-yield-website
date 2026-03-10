@@ -175,6 +175,13 @@
   <a href="#CY014"><span class="dot dot-crit"></span><span class="rid">CY014</span>Repeated actions</a>
   <a href="#CY015"><span class="dot dot-crit"></span><span class="rid">CY015</span>Non-equi join</a>
 
+  <div class="sidebar-section">Linter — Tier 3</div>
+  <a href="#CY017"><span class="dot dot-warn"></span><span class="rid">CY017</span>Window w/o partitionBy</a>
+  <a href="#CY018"><span class="dot dot-warn"></span><span class="rid">CY018</span>Schema inference</a>
+  <a href="#CY020"><span class="dot dot-warn"></span><span class="rid">CY020</span>.count() for emptiness</a>
+  <a href="#CY025"><span class="dot dot-warn"></span><span class="rid">CY025</span>Missing .unpersist()</a>
+  <a href="#CY031"><span class="dot dot-warn"></span><span class="rid">CY031</span>Iterating .collect()</a>
+
   <div class="sidebar-section">General</div>
   <a href="#suppression"><span class="dot" style="background:var(--text-dim)"></span><span class="rid" style="min-width:42px"></span>Inline suppression</a>
   <a href="#CY016-note"><span class="dot dot-info"></span><span class="rid">CY016</span>Escape sequences</a>
@@ -186,6 +193,7 @@
   <a href="#format-detect"><span class="dot dot-snap"></span><span class="rid" style="min-width:50px">SNAP</span>Format detection</a>
   <a href="#config-anti"><span class="dot dot-snap"></span><span class="rid" style="min-width:50px">SNAP</span>Config anti-patterns</a>
   <a href="#plan-regression"><span class="dot dot-snap"></span><span class="rid" style="min-width:50px">SNAP</span>Plan regression</a>
+  <a href="#cartesian-product"><span class="dot dot-snap"></span><span class="rid" style="min-width:50px">SNAP</span>Cartesian detection</a>
 </nav>
 
 <main class="main">
@@ -206,7 +214,7 @@
     <div class="tier-card tier-free">
       <span class="tier-tag">Free</span>
       <h3>Linter</h3>
-      <p>Static analysis of PySpark source code. Catches 15 anti-patterns. No cluster, no account. <code>pip install cylint</code></p>
+      <p>Static analysis of PySpark source code. Catches 20 anti-patterns. No cluster, no account. <code>pip install cylint</code></p>
     </div>
     <div class="tier-card tier-paid">
       <span class="tier-tag">Snapshot</span>
@@ -310,7 +318,7 @@ const RULES = [
     snap_pair: "column-pruning",
     ladder: [
       { tier:"linter", label:"Linter (free)", output:'<span class="loc">pipeline.py:31:0:</span> CY004 [info] SQL query uses SELECT * with no downstream projection. Specify only needed columns to enable column pruning.' },
-      { tier:"snap", label:"With Snapshot", output:'<span class="loc">pipeline.py:31:0:</span> CY004 [info] SELECT * on <code>orders</code>\n  Reading <span class="hl">47 of 50 columns</span> (94% excess)\n  Table: orders (800GB, 30 runs/month)' },
+      { tier:"snap", label:"With Snapshot", output:'<span class="loc">pipeline.py:31:0:</span> CY004 [info] SELECT * on <code>orders</code> → write\n  Reading <span class="hl">47 of 50 columns</span> through join → write (no intermediate projection)\n  Table: orders (800GB, 30 runs/month)' },
     ],
     refs:[
       {t:"Research",txt:"CERN Databases Blog — \"Diving into Spark and Parquet Workloads\" (column pruning measured)",u:"https://db-blog.web.cern.ch/node/187"},
@@ -353,11 +361,11 @@ const RULES = [
       { tier:"snap", label:"With Snapshot", output:'<span class="loc">pipeline.py:52:8:</span> CY007 [critical] Cross join on <code>users × events</code>\n  Left: <span class="hl">users (50K rows, 25MB)</span>\n  Right: <span class="hl">events (2B rows, 1.8TB)</span>\n  Output: ~100T rows.' },
     ],
     refs:[
-      {t:"Corpus",txt:"Roughly 1 in 10 production-adjacent projects have at least one cross join. Most are intentional — the risk is inputs growing over time."},
+      {t:"Corpus",txt:"Cross joins are common in production PySpark code — most are intentional (broadcasting small aggregates, generating candidate pairs). The risk is inputs growing over time."},
     ]
   },
   { id:"CY008", name:".repartition() Before .write()", sev:"info", cost:"money",
-    desc:'<code>.repartition(N)</code> triggers a full shuffle — every row serialized across the network.  This is a legitimate approach for increasing parallelism and # of partitions, but for file reduction it\'s wasteful.  Only fires when the repartition count is < 50, which is a heuristic.',
+    desc:'<code>.repartition(N)</code> triggers a full shuffle — every row serialized across the network. This is a legitimate approach for increasing parallelism and partition count, but for reducing file count before a write it is wasteful. Only fires when the repartition target is a small literal value, which typically indicates file count reduction rather than parallelism tuning.',
     bad:'<span class="c"># ❌ Full shuffle to reduce file count</span>\ndf.repartition(<span class="n">10</span>).write.parquet(<span class="s">"s3://output"</span>)',
     good:'<span class="c"># ✅ Coalesce avoids shuffle</span>\ndf.coalesce(<span class="n">10</span>).write.parquet(<span class="s">"s3://output"</span>)\n',
     fix:'Use <code>.coalesce(N)</code>.',
@@ -381,7 +389,7 @@ const RULES = [
       { tier:"snap", label:"With Snapshot", output:'<span class="loc">pipeline.py:47:0:</span> CY009 [critical] UDF blocks pushdown on <code>orders</code>\n  Table: <span class="hl">orders (800GB, partitioned by date, 365 partitions)</span>\n  UDF forces full scan. With pushdown, 30-day filter reads ~66GB (8%).' },
     ],
     refs:[
-      {t:"Blog",txt:"cdelmonte.dev — side-by-side pushdown example with and without UDF",u:"https://cdelmonte.dev"},
+      {t:"Spark",txt:"Spark SQL Guide — predicate pushdown requires expressions Catalyst can evaluate at the scan level",u:"https://spark.apache.org/docs/latest/sql-performance-tuning.html"},
       {t:"GitHub",txt:"Apache Iceberg #4997 — partition filter failure with UDFs",u:"https://github.com/apache/iceberg/issues/4997"},
     ]
   },
@@ -430,14 +438,14 @@ const RULES = [
       { tier:"linter", label:"Linter (free)", output:'<span class="loc">pipeline.py:95:0:</span> CY013 [warning] .coalesce(1) before write forces all data through a single executor. OOM risk on large DataFrames.' },
     ],
     refs:[
-      {t:"Blog",txt:"luminousmen — \"People see coalesce(1) and think \'Nice — one output file.\' Except now you\'ve killed parallelism.\"",u:"https://luminousmen.com/post/spark-tips-partition-tuning"},
+      {t:"Blog",txt:"luminousmen — Spark partitioning: coalesce(1) kills parallelism",u:"https://luminousmen.com/post/spark-partitions/"},
       {t:"Blog",txt:"BigDataPerformance — \"forces the entire dataset to be processed by a single executor\"",u:"https://bigdataperformance.substack.com/p/mastering-apache-spark-partitioning"},
     ]
   },
   { id:"CY014", name:"Repeated Actions Without .cache()", sev:"critical", cost:"money",
     desc:'Every Spark action recomputes the full lineage from source. Multiple actions on an uncached DataFrame = N full passes over the data.  Note: estimated savings may be lower on Databricks clusters with warm disk cache',
-    bad:'<span class="c"># ❌ Three full lineage recomputations</span>\nn = df.count()              <span class="c"># pass 1</span>\nsample = df.take(<span class="n">10</span>)        <span class="c"># pass 2</span>\ndf.write.parquet(<span class="s">"s3://out"</span>) <span class="c"># pass 3</span>',
-    good:'<span class="c"># ✅ Cache before multiple actions</span>\ndf = df.cache()\nn = df.count()              <span class="c"># pass 1 (caches)</span>\nsample = df.take(<span class="n">10</span>)        <span class="c"># from cache</span>\ndf.write.parquet(<span class="s">"s3://out"</span>) <span class="c"># from cache</span>\ndf.unpersist()',
+    bad:'<span class="c"># ❌ Three lineage recomputations from source</span>\nn = df.count()              <span class="c"># full scan</span>\nsample = df.take(<span class="n">10</span>)        <span class="c"># recomputes lineage (partial scan)</span>\ndf.write.parquet(<span class="s">"s3://out"</span>) <span class="c"># full scan again</span>',
+    good:'<span class="c"># ✅ Cache before multiple actions</span>\ndf = df.cache()\nn = df.count()              <span class="c"># triggers compute + caches result</span>\nsample = df.take(<span class="n">10</span>)        <span class="c"># reads from cache</span>\ndf.write.parquet(<span class="s">"s3://out"</span>) <span class="c"># reads from cache</span>\ndf.unpersist()',
     fix:'Add <code>.cache()</code> before the first action and <code>.unpersist()</code> when done.',
     ladder: [
       { tier:"linter", label:"Linter (free)", output:'<span class="loc">pipeline.py:62:0:</span> CY014 [critical] DataFrame has 3 terminal actions without .cache(). Each recomputes full lineage.' },
@@ -463,20 +471,89 @@ const RULES = [
       {t:"PySpark",txt:"PySpark API — DataFrame.join()",u:"https://spark.apache.org/docs/latest/api/python/reference/pyspark.sql/api/pyspark.sql.DataFrame.join.html"},
     ]
   },
+  { id:"CY017", name:"Window Function Without partitionBy", sev:"warning", cost:"money",
+    desc:'<code>Window.orderBy()</code> without <code>.partitionBy()</code> forces Spark to sort the entire dataset into a single partition. The physical plan shows a <code>Sort</code> feeding a <code>Window</code> with a single-partition <code>ShuffleExchange</code>. All data flows through one task, which is catastrophically slow on non-trivial tables and liable to OOM. Adding <code>.partitionBy(key)</code> limits the sort scope to within each partition.',
+    bad:'<span class="c"># ❌ Full-table sort — all data through one task</span>\n<span class="k">from</span> pyspark.sql.window <span class="k">import</span> Window\n<span class="k">from</span> pyspark.sql <span class="k">import</span> functions <span class="k">as</span> F\n\nw = Window.orderBy(<span class="s">"ts"</span>)\ndf.withColumn(<span class="s">"row_num"</span>, F.row_number().over(w))',
+    good:'<span class="c"># ✅ Sort scoped to partitions</span>\nw = Window.partitionBy(<span class="s">"user_id"</span>).orderBy(<span class="s">"ts"</span>)\ndf.withColumn(<span class="s">"row_num"</span>, F.row_number().over(w))',
+    fix:'Add <code>.partitionBy(key)</code> to the window spec. If a global ordering is genuinely required (rare in production), add <code># cy:ignore CY017</code>.',
+    ladder: [
+      { tier:"linter", label:"Linter (free)", output:'<span class="loc">pipeline.py:34:0:</span> CY017 [warning] Window function uses .orderBy() without .partitionBy(). Forces a full-table sort into a single partition.' },
+    ],
+    refs:[
+      {t:"PySpark",txt:"PySpark API — Window.partitionBy()",u:"https://spark.apache.org/docs/latest/api/python/reference/pyspark.sql/api/pyspark.sql.Window.partitionBy.html"},
+      {t:"Internals",txt:"Spark Internals — WindowExec: \"No Partition Defined… Moving all data to a single partition\"",u:"https://jaceklaskowski.gitbooks.io/mastering-spark-sql/content/spark-sql-SparkPlan-WindowExec.html"},
+      {t:"Databricks",txt:"Databricks Blog — \"Introducing Window Functions in Spark SQL\"",u:"https://www.databricks.com/blog/2015/07/15/introducing-window-functions-in-spark-sql.html"},
+    ]
+  },
+  { id:"CY018", name:"Schema Inference on CSV/JSON Read", sev:"warning", cost:"money",
+    desc:'Reading CSV or JSON without an explicit <code>.schema()</code> causes one of two problems. With <code>inferSchema=True</code>, Spark reads the file twice: once to infer types, once for the actual data — pure wasted I/O on large files. Without <code>inferSchema</code> (the default for CSV), Spark reads all columns as strings, losing type safety and forcing downstream casts. Either way, specifying an explicit schema eliminates the problem. This does NOT apply to columnar formats (Parquet, ORC, Delta, Avro) which have embedded schemas.',
+    bad:'<span class="c"># ❌ Double read — inference pass + data pass</span>\ndf = spark.read.csv(<span class="s">"s3://data/orders.csv"</span>)\n\n<span class="c"># ❌ Also fires — explicit inference</span>\ndf = spark.read.option(<span class="s">"inferSchema"</span>, <span class="s">"true"</span>).csv(<span class="s">"s3://data/orders.csv"</span>)',
+    good:'<span class="c"># ✅ Explicit schema — single read</span>\n<span class="k">from</span> pyspark.sql.types <span class="k">import</span> StructType, StructField, StringType, DoubleType\nschema = StructType([\n    StructField(<span class="s">"order_id"</span>, StringType()),\n    StructField(<span class="s">"amount"</span>, DoubleType()),\n])\ndf = spark.read.schema(schema).csv(<span class="s">"s3://data/orders.csv"</span>)',
+    fix:'Provide an explicit <code>StructType</code> schema via <code>.schema()</code>. Alternatively, set <code>.option("inferSchema", "false")</code> to read all columns as strings and cast manually.',
+    ladder: [
+      { tier:"linter", label:"Linter (free)", output:'<span class="loc">ingest.py:12:0:</span> CY018 [warning] spark.read.csv() without .schema() — specify an explicit StructType to avoid schema inference overhead or silent string-typing.' },
+      { tier:"snap", label:"With Snapshot", output:'<span class="loc">ingest.py:12:0:</span> CY018 [warning] No explicit schema on <code>transactions</code> (CSV)\n  With inferSchema: double read (inference pass + data pass)\n  Without inferSchema: all columns read as strings' },
+    ],
+    refs:[
+      {t:"Blog",txt:"t-redactyl.io — Schema inference benchmark (28s with inference vs 2.5s with explicit schema)",u:"https://t-redactyl.io/blog/2020/08/using-schemas-to-speed-up-reading-into-spark-dataframes.html"},
+      {t:"Blog",txt:"Towards Data Science — \"PySpark Explained: The InferSchema Problem\" (31s overhead measured)",u:"https://towardsdatascience.com/pyspark-explained-the-inferschema-problem-12a08c989371/"},
+      {t:"PySpark",txt:"PySpark API — DataFrameReader.schema()",u:"https://spark.apache.org/docs/latest/api/python/reference/pyspark.sql/api/pyspark.sql.DataFrameReader.schema.html"},
+    ]
+  },
+  { id:"CY020", name:".count() Used Only as Emptiness Check", sev:"warning", cost:"money",
+    desc:'<code>.count()</code> materializes the entire DataFrame lineage to return a total row count. When the result is only compared against 0 (e.g., <code>if df.count() > 0</code>), the full scan is wasted — only existence needs to be checked. <code>df.head(1)</code> or <code>df.isEmpty()</code> (Spark 3.3+) stops after finding one row.',
+    bad:'<span class="c"># ❌ Full scan just to check emptiness</span>\n<span class="k">if</span> df.count() > <span class="n">0</span>:\n    df.write.parquet(<span class="s">"s3://output"</span>)\n\n<span class="c"># ❌ Also fires</span>\n<span class="k">if</span> df.count() == <span class="n">0</span>:\n    <span class="k">raise</span> ValueError(<span class="s">"No data"</span>)',
+    good:'<span class="c"># ✅ Stops after first row found</span>\n<span class="k">if</span> len(df.head(<span class="n">1</span>)) > <span class="n">0</span>:\n    df.write.parquet(<span class="s">"s3://output"</span>)\n\n<span class="c"># ✅ Spark 3.3+</span>\n<span class="k">if not</span> df.isEmpty():\n    df.write.parquet(<span class="s">"s3://output"</span>)',
+    fix:'Replace <code>df.count() > 0</code> with <code>len(df.head(1)) > 0</code> or <code>not df.isEmpty()</code> (Spark 3.3+). If you need the actual count for other purposes, keep <code>.count()</code> — this rule only fires when the count is used solely as an emptiness check.',
+    ladder: [
+      { tier:"linter", label:"Linter (free)", output:'<span class="loc">pipeline.py:23:4:</span> CY020 [warning] .count() used only to check emptiness. Use df.head(1) or df.isEmpty() instead — stops after one row.' },
+    ],
+    refs:[
+      {t:"PySpark",txt:"PySpark API — DataFrame.isEmpty() (added Spark 3.3)",u:"https://spark.apache.org/docs/latest/api/python/reference/pyspark.sql/api/pyspark.sql.DataFrame.isEmpty.html"},
+      {t:"SparkByExamples",txt:"Multiple emptiness check methods and performance comparison",u:"https://sparkbyexamples.com/spark/spark-check-dataframe-empty/"},
+      {t:"PySpark",txt:"PySpark API — DataFrame.count() — triggers full lineage computation",u:"https://spark.apache.org/docs/latest/api/python/reference/pyspark.sql/api/pyspark.sql.DataFrame.count.html"},
+    ]
+  },
+  { id:"CY025", name:".cache() Without .unpersist()", sev:"warning", cost:"reliability",
+    desc:'<code>.cache()</code> or <code>.persist()</code> stores a DataFrame in executor memory (or memory + disk). If <code>.unpersist()</code> is never called in the same scope, the cached data consumes executor memory until the session ends. In long-running sessions or notebooks, accumulated cached DataFrames cause memory pressure, spill to disk, and reduced shuffle headroom. This is the lifecycle complement to CY005 (single-use cache) and CY014 (missing cache).',
+    bad:'<span class="c"># ❌ Cached but never unpersisted — memory leak</span>\ndf = spark.table(<span class="s">"orders"</span>).cache()\nn = df.count()\ndf.write.parquet(<span class="s">"s3://output"</span>)\n<span class="c"># session continues... memory still consumed</span>',
+    good:'<span class="c"># ✅ Explicit lifecycle management</span>\ndf = spark.table(<span class="s">"orders"</span>).cache()\nn = df.count()\ndf.write.parquet(<span class="s">"s3://output"</span>)\ndf.unpersist()',
+    fix:'Add <code>.unpersist()</code> after the last action on the cached DataFrame. If the session is short-lived (e.g., a single Airflow task that terminates after the job), the leak is bounded and can be suppressed with <code># cy:ignore CY025</code>.',
+    ladder: [
+      { tier:"linter", label:"Linter (free)", output:'<span class="loc">pipeline.py:18:0:</span> CY025 [warning] .cache() on \'df\' without .unpersist() in the same scope. Cached data consumes executor memory until session ends.' },
+    ],
+    refs:[
+      {t:"PySpark",txt:"PySpark API — DataFrame.unpersist()",u:"https://spark.apache.org/docs/latest/api/python/reference/pyspark.sql/api/pyspark.sql.DataFrame.unpersist.html"},
+      {t:"Spark",txt:"Spark Programming Guide — RDD Persistence: \"Spark automatically monitors cache usage and drops out old data partitions using LRU\"",u:"https://spark.apache.org/docs/latest/rdd-programming-guide.html#rdd-persistence"},
+      {t:"Note",txt:"Complementary to CY005 (single-use cache — remove .cache() entirely) and CY014 (multiple actions without cache — add .cache()). CY025 catches the third case: cache is used correctly but never released."},
+    ]
+  },
+  { id:"CY031", name:"Iterating Over .collect() Results", sev:"warning", cost:"reliability",
+    desc:'A <code>for row in df.collect()</code> loop pulls the entire distributed dataset to the driver and processes it row-by-row in Python. This defeats Spark\'s distributed execution model and is liable to OOM the driver on non-trivial DataFrames. The correct approach is to express the logic as DataFrame transformations that execute on the cluster.',
+    bad:'<span class="c"># ❌ All data to driver, processed row-by-row</span>\n<span class="k">for</span> row <span class="k">in</span> df.collect():\n    process(row[<span class="s">"amount"</span>])\n\n<span class="c"># ❌ Also fires — toPandas iteration</span>\n<span class="k">for</span> idx, row <span class="k">in</span> df.toPandas().iterrows():\n    process(row)',
+    good:'<span class="c"># ✅ Express logic as DataFrame transformations</span>\ndf = df.withColumn(<span class="s">"processed"</span>,\n    F.when(F.col(<span class="s">"amount"</span>) > <span class="n">100</span>, F.col(<span class="s">"amount"</span>) * <span class="n">0.9</span>)\n     .otherwise(F.col(<span class="s">"amount"</span>))\n)\n\n<span class="c"># ✅ If per-row side effects are needed (e.g., API calls)</span>\ndf.foreach(<span class="k">lambda</span> row: send_to_api(row[<span class="s">"amount"</span>]))',
+    fix:'Rewrite the loop body as a DataFrame transformation (<code>.withColumn()</code>, <code>.select()</code>, UDF). If per-row side effects are genuinely required (e.g., API calls), use <code>df.foreach()</code> or <code>df.foreachPartition()</code> which execute on the cluster. If the collected data is small and intentional, add <code># cy:ignore CY031</code>.',
+    ladder: [
+      { tier:"linter", label:"Linter (free)", output:'<span class="loc">pipeline.py:45:0:</span> CY031 [warning] Iterating over .collect() results — pulls entire dataset to driver for row-by-row processing.' },
+    ],
+    refs:[
+      {t:"PySpark",txt:"PySpark API — DataFrame.foreach()",u:"https://spark.apache.org/docs/latest/api/python/reference/pyspark.sql/api/pyspark.sql.DataFrame.foreach.html"},
+      {t:"PySpark",txt:"PySpark API — DataFrame.foreachPartition()",u:"https://spark.apache.org/docs/latest/api/python/reference/pyspark.sql/api/pyspark.sql.DataFrame.foreachPartition.html"},
+      {t:"Databricks",txt:"Spark Knowledge Base — same guidance as CY001; .collect() iteration is the most common follow-on pattern",u:"https://databricks.gitbooks.io/databricks-spark-knowledge-base/content/best_practices/dont_call_collect_on_a_very_large_rdd.html"},
+    ]
+  },
 ];
-
-// Snapshot-only detectors
 const SNAP_DETECTORS = [
   { id:"broadcast-miss", name:"Broadcast Miss Detection", sev:"critical",
-    desc:'Detects SortMergeJoin or ShuffledHashJoin on tables small enough to broadcast. A 25MB table joined via SortMergeJoin forces a full shuffle of the large side — broadcasting it would eliminate the shuffle entirely.',
-    output:'🔴 <span class="hl">Missed broadcast</span>: customers (25 MB) in Inner SortMergeJoin\n   Large side: orders (120GB)\n   Current strategy: SortMergeJoin → <span class="hl">$X/month</span>\n   With BroadcastHashJoin: $Y/month\n   Estimated savings: <span class="hl">~$X-Y/month</span>',
+    desc:'Detects SortMergeJoin or ShuffledHashJoin on tables small enough to broadcast. A small table joined via SortMergeJoin forces a full shuffle of the large side — broadcasting it would eliminate the shuffle entirely.',
+    output:'🔴 <span class="hl">Missed broadcast</span>: customers (25 MB) in Inner SortMergeJoin\n   Large side: orders (120GB)\n   Current strategy: SortMergeJoin (full shuffle of both sides)\n   Recommended: BroadcastHashJoin (broadcast the 25MB side, no shuffle)',
     why:"The linter can't detect this because it requires knowing table sizes at runtime. A join on <code>customers</code> looks correct in source code — the anti-pattern is only visible when you see that <code>customers</code> is 25MB and should be broadcast.",
     formula:'<code>savings = (smj_coeff − bhj_coeff) × larger_side_gb × runs/month</code>',
   },
   { id:"column-pruning", name:"Column Pruning Detection", sev:"warning",
-    desc:'Detects scans reading significantly more columns than the downstream query requires.  This is much more of a problem with row-based formats than columnar formats because Catalyst is very good at pruning based on the plan\'s computed projection set. Provides exact column counts from the physical plan rather than the heuristic SELECT * detection.',
-    output:'⚠️ <span class="hl">Excess columns</span>: orders scan reads 47 of 50 columns\n  Query uses: order_id, amount, date',
-    why:"CY004 catches <code>SELECT *</code> in SQL strings followed , but many column waste patterns aren't literal SELECT * — they're DataFrames that carry unnecessary columns through joins. The snapshot sees the actual ReadSchema in the physical plan.",
+    desc:'Detects scans where the plan\'s ReadSchema includes significantly more columns than the downstream query requires. Catalyst automatically prunes unused columns in most analytical queries (groupBy, agg, filter), so this detector primarily fires on write-through patterns where all columns travel through joins or writes without intermediate projection. More impactful on row-based formats (CSV, JSON) than columnar formats (Parquet, Delta).',
+    output:'⚠️ <span class="hl">Excess columns</span>: orders scan reads 47 of 50 columns through join → write\n   ReadSchema includes 47 fields; downstream write preserves all\n   Only 5 columns referenced in join key + aggregation logic',
+    why:"CY004 catches <code>SELECT *</code> in SQL strings, but many column waste patterns aren\'t literal SELECT * — they\'re DataFrames that carry unnecessary columns through joins and writes. The snapshot sees the actual ReadSchema in the physical plan and can compare it against what the query logic references.",
     formula:'<code>savings = scan_coeff × table_gb × (1 − needed_cols/total_cols) × runs</code>',
     linter_link: "CY004",
   },
@@ -488,8 +565,8 @@ const SNAP_DETECTORS = [
     linter_link: "CY009",
   },
   { id:"format-detect", name:"Storage Format Detection", sev:"warning",
-    desc:'Detects scans on non-columnar formats (CSV, JSON, text) for tables large enough that format conversion would produce meaningful savings. Columnar formats (Parquet, Delta, ORC) enable column pruning and predicate pushdown.',
-    output:'⚠️ <span class="hl">Non-columnar format</span>: events scanned as CSV (1.2TB)\n   CSV cannot skip columns or push predicates\n   Convert to Parquet with typical 3× compression.',
+    desc:'Detects scans on non-columnar formats (CSV, JSON, text) for tables large enough that format conversion would produce meaningful savings. Columnar formats (Parquet, Delta, ORC) provide three compounding benefits: column pruning (skip unneeded columns), predicate pushdown (skip files via min/max stats), and compression (significant reduction depending on data characteristics).',
+    output:'⚠️ <span class="hl">Non-columnar format</span>: events scanned as CSV (1.2TB)\n   CSV cannot skip columns or push predicates\n   Columnar format enables column pruning, predicate pushdown, and compression.',
     why:"The linter analyzes source code, not storage metadata. It can't know what format a table is stored in — that's only visible from the scan node in the physical plan.",
     formula:'<code>savings = scan_coeff × table_gb × combined_reduction_factor × runs</code>',
   },
@@ -507,9 +584,10 @@ const SNAP_DETECTORS = [
   },
   { id:"cartesian-product", name:"Cartesian / Non-Equi Join Detection", sev:"critical",
     desc:'Detects BroadcastNestedLoopJoin and CartesianProduct nodes in the physical plan. These operators compare every row on one side against every row on the other — O(n×m) — regardless of whether the small side is broadcast. A broadcast hint eliminates the shuffle but not the cartesian comparison. This detector catches both explicit cross joins and non-equi joins that the optimizer could not convert to a hash or sort-merge strategy.',
-    output:'🔴 <span class="hl">Cartesian product detected</span>: BroadcastNestedLoopJoin\n   Left: events (1.8TB, 2B rows)\n   Right: windows (4MB, 50K rows, broadcast)\n   Join condition: events.ts > windows.start (non-equi)\n   Comparisons: ~100T row pairs\n   Estimated cost: <span class="hl">~$34,000/month</span>\n\n   Broadcast does NOT help here — it eliminates the shuffle\n   but every row is still compared against every broadcast row.',
-    why:"The linter catches explicit <code>.crossJoin()</code> (CY007) and non-equi conditions (CY015), but it can't determine the actual join strategy chosen by the optimizer. A join that looks equi in source code can still produce a CartesianProduct if Spark can't use the condition for partitioning (e.g., complex expressions, type mismatches). The snapshot sees the physical plan operator directly.",
-    formula:'<code>savings = cartesian_coeff × left_gb × right_gb × runs/month</code><br>If an equi-key exists and was omitted, the fix replaces the cartesian with a SortMergeJoin or BroadcastHashJoin. If the cartesian is intentional, the detector flags it for size monitoring.',
+    output:'🔴 <span class="hl">Cartesian product detected</span>: BroadcastNestedLoopJoin\n   Left: events (1.8TB, 2B rows)\n   Right: windows (4MB, 50K rows, broadcast)\n   Join condition: events.ts > windows.start (non-equi)\n   Comparisons: ~100T row pairs\n\n   Broadcast does NOT help here — it eliminates the shuffle\n   but every row is still compared against every broadcast row.',
+    why:"The linter catches explicit <code>.crossJoin()</code> (CY007) and non-equi conditions (CY015), but it can\'t determine the actual join strategy chosen by the optimizer. A join that looks equi in source code can still produce a CartesianProduct if Spark can\'t use the condition for partitioning (e.g., complex expressions, type mismatches). The snapshot sees the physical plan operator directly.",
+    formula:'The cost of a cartesian is driven by the number of row-pair comparisons (left_rows × right_rows), not by the GB of either side alone. Savings are computed as the delta between the current operator cost and the cost of the alternative join strategy:<br><code>savings = cartesian_plan_cost − alternative_join_cost</code><br>Where <code>cartesian_plan_cost</code> is derived from top-down cost attribution, and <code>alternative_join_cost</code> uses the BroadcastHashJoin or SortMergeJoin coefficient depending on relative table sizes. If the cartesian is intentional, the detector flags it for size monitoring.',
+    linter_link: "CY007",
   }
 ];
 
