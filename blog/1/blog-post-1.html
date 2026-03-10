@@ -419,9 +419,9 @@ footer p { font-size: 12px; color: var(--text-dim); }
 
   <div class="prose">
 
-    <p>I know what you're thinking… "dear God not another linter". And honestly, the sentiment is understandable. How many of us want to bother installing yet another tool into our already cluttered workflows? How many rules am I going to have to disable THIS time, just to get a clean CI build again? And that is a totally fair position to take. I've been there. But after spending some time working on production PySpark systems that cost hundreds of thousands of dollars per month to run (and nobody bats an eye), the amount of waste I saw was genuinely surprising.</p>
+    <p>I know what you're thinking… "Dear God not another linter". And honestly, the sentiment is understandable. How many of us want to bother installing yet another tool into our already cluttered workflows? How many rules am I going to have to disable THIS time, just to get a clean CI build again? And that is a totally fair position to take. I've been there. But after spending some time working on production PySpark systems that cost hundreds of thousands of dollars per month to run (and nobody bats an eye), the amount of waste I saw was genuinely surprising.</p>
 
-    <p>Of course, not all organizations do data engineering with Spark the same way as we did, so my single data point might not generalize well. But knowing I don't have the full picture got me thinking about the overall problem and whether this is something that other teams also deal with. How prevalent is compute/shuffle/scan waste across the industry? How much money can be saved if those problems are fixed? Is monetary waste a problem that static analysis on its own can handle, and if not, why not? These are questions that I feel are worth asking and digging into because I believe that static analysis has its place in Data Engineering workflows and that it is possible to quantify, with dollars and cents, many of these wasteful spends within the comfort of the engineering dev cycle.  <b>What if, at code review time, you could see exactly how much a code change would cost in production — before it ever gets deployed?</b></p>
+    <p>Of course, not all organizations do data engineering with Spark the same way, so my single data point might not generalize well. But knowing I don't have the full picture got me thinking about the overall problem and whether this is something that other teams also deal with. How prevalent is compute/shuffle/scan waste across the industry? How much money can be saved if those problems are fixed? Is monetary waste a problem that static analysis on its own can handle, and if not, why not? These are questions that I feel are worth asking and digging into because I believe that static analysis has its place in Data Engineering workflows and that it is possible to quantify, with dollars and cents, many of these wasteful spends within the comfort of the engineering dev cycle.  <b>What if, at code review time, you could see exactly how much a code change would cost in production — before it ever gets deployed?</b></p>
 
     <h2>First, Here's What Our Static Analysis Found</h2>
 
@@ -462,7 +462,7 @@ return 1</code></pre>
     </table>
     <div class="table-caption">Table 1 — Overall hit rate by project tier</div>
 
-    <p>Okay, so more experienced engineers definitely write cleaner code overall. Hooray! Tell me something I don't know, right? Well, it gets a bit more interesting when we break it down by finding. The data splits into two categories: patterns that decline with maturity, and patterns that persist (or concentrate) in production code.</p>
+    <p>Okay, so more experienced engineers definitely write cleaner code overall. Hooray! Tell me something I don't know, right? Well, it gets a bit more interesting when I break it down by finding. The data splits into two categories: patterns that decline with maturity, and patterns that persist (or concentrate) in production code.</p>
 
     <table>
       <thead>
@@ -538,7 +538,7 @@ return 1</code></pre>
 
     <p>I admit that I myself have taken the easy road and resized a cluster when a deeper dive could have fixed the underlying issue. Not something I'm proud of, but when there are 12 more Airflow DAGs that you need to build, you fix the problem quickly and move on.</p>
 
-    <p>Right, let's get back to static analysis and where it falls short. As we just surmised, there is a whole class of problems that are invisible to a code linter by definition, and many antipatterns are intentional. So does that mean it's a dead end? Well, not really, no. It just means we need to find creative ways to use the data that is available about our Spark jobs so that we can answer two important questions:</p>
+    <p>Right, let's get back to static analysis and where it falls short. As we just surmised, dear reader, there is a whole class of problems that are invisible to a code linter by definition, and many antipatterns are intentional. So does that mean it's a dead end? Well, not really, no. It just means we need to find creative ways to use the data that is available about our Spark jobs so that we can answer two important questions:</p>
 
     <ul class="question-list">
       <li>Does this antipattern actually cost money?</li>
