@@ -274,7 +274,7 @@ const RULES = [
     refs:[ {t:"Databricks",txt:"Spark Knowledge Base — \"Don't copy all elements of a large RDD to the driver\"",u:"https://databricks.gitbooks.io/databricks-spark-knowledge-base/content/best_practices/dont_call_collect_on_a_very_large_rdd.html"} ]
   },
   { id:"CY002", name:"UDF Where Builtin Exists", sev:"warning", cost:"reliability",
-    desc:'PySpark UDFs serialize data from the JVM to a Python process and back for every batch. When an equivalent builtin exists (e.g., <code>F.col(...).cast(\'float\')</code> instead of <code>udf(float)</code>), the builtin runs entirely in the JVM — often 10x faster. Dollar amounts are not currently computed for this rule; the impact is CPU time and job duration, not scan/shuffle cost.',
+    desc:'PySpark UDFs serialize data from the JVM to a Python process and back for every batch. When an equivalent builtin exists (e.g., <code>F.col(...).cast(\'float\')</code> instead of <code>udf(float)</code>), the builtin runs entirely in the JVM — often significantly faster. Dollar amounts are not currently computed for this rule; the impact is CPU time and job duration, not scan/shuffle cost.',
     bad:'<span class="c"># ❌ UDF for something builtins handle</span>\nto_float = udf(<span class="k">lambda</span> x: float(x), FloatType())\ndf = df.withColumn(<span class="s">"amount"</span>, to_float(col(<span class="s">"amount_str"</span>)))',
     good:'<span class="c"># ✅ Use builtin cast — stays in JVM</span>\ndf = df.withColumn(<span class="s">"amount"</span>, col(<span class="s">"amount_str"</span>).cast(<span class="s">"float"</span>))',
     fix:'Replace the UDF with the equivalent builtin. Common: <code>int()</code> → <code>.cast(\'int\')</code>, <code>float()</code> → <code>.cast(\'float\')</code>, <code>str.upper()</code> → <code>F.upper()</code>, <code>len()</code> → <code>F.length()</code>.',
@@ -282,7 +282,7 @@ const RULES = [
       { tier:"linter", label:"Linter (free)", output:'<span class="loc">pipeline.py:15:0:</span> CY002 [warning] UDF uses float() which has a builtin equivalent: F.col(...).cast(\'float\').' },
     ],
     refs:[
-      {t:"PySpark",txt:"PySpark UDFs — serialization overhead documented",u:"https://spark.apache.org/docs/latest/api/python/user_guide/sql/arrow_pandas.html"},
+      {t:"PySpark",txt:"PySpark UDFs — serialization overhead documented",u:"https://spark.apache.org/docs/latest/api/python/reference/pyspark.sql/api/pyspark.sql.functions.udf.html"},
       {t:"AWS",txt:"AWS Prescriptive Guidance — \"Spark SQL is much faster than UDFs\"",u:"https://docs.aws.amazon.com/prescriptive-guidance/latest/tuning-aws-glue-for-apache-spark/optimize-pyspark.html"},
     ]
   },
@@ -357,7 +357,7 @@ const RULES = [
     ]
   },
   { id:"CY008", name:".repartition() Before .write()", sev:"info", cost:"money",
-    desc:'<code>.repartition(N)</code> triggers a full shuffle — every row serialized across the network.  This is a legitmate approach for increasing parallelism and # of partitions, but for file reduction it\'s wasteful.  Only fires when the repartition count is < 100',
+    desc:'<code>.repartition(N)</code> triggers a full shuffle — every row serialized across the network.  This is a legitimate approach for increasing parallelism and # of partitions, but for file reduction it\'s wasteful.  Only fires when the repartition count is < 50, which is a heuristic.',
     bad:'<span class="c"># ❌ Full shuffle to reduce file count</span>\ndf.repartition(<span class="n">10</span>).write.parquet(<span class="s">"s3://output"</span>)',
     good:'<span class="c"># ✅ Coalesce avoids shuffle</span>\ndf.coalesce(<span class="n">10</span>).write.parquet(<span class="s">"s3://output"</span>)\n',
     fix:'Use <code>.coalesce(N)</code>.',
@@ -410,7 +410,7 @@ const RULES = [
     ]
   },
   { id:"CY012", name:".show() / .display() in Production Code", sev:"warning", cost:"clarity",
-    desc:'Debug methods like <code>.show()</code>, <code>.display()</code>, and <code>.printSchema()</code> trigger Spark actions that materialize the full lineage. In production pipelines, this adds unnecessary compute and can mask performance issues.',
+    desc:'Debug methods like <code>.show()</code>, <code>.display()</code>, and <code>.printSchema()</code> trigger Spark actions that can cause unnecessary computation, especially when shuffles or aggregations are in the lineage. In production pipelines, this adds unnecessary compute and can mask performance issues.',
     bad:'<span class="c"># ❌ Debug output left in production pipeline</span>\ndf = spark.table(<span class="s">"orders"</span>).filter(...)\ndf.show()  <span class="c"># triggers full computation</span>\ndf.write.parquet(<span class="s">"s3://output"</span>)',
     good:'<span class="c"># ✅ Remove debug methods from production</span>\ndf = spark.table(<span class="s">"orders"</span>).filter(...)\ndf.write.parquet(<span class="s">"s3://output"</span>)',
     fix:'Remove <code>.show()</code>, <code>.display()</code>, and <code>.printSchema()</code> from production code paths.',
@@ -425,13 +425,13 @@ const RULES = [
     desc:'Reducing to a single partition forces all data through one executor task. If the data exceeds that executor\'s memory, the job OOMs. Even when it succeeds, one core does all the work while the cluster sits idle.',
     bad:'<span class="c"># ❌ All data through one executor</span>\ndf.coalesce(<span class="n">1</span>).write.parquet(<span class="s">"s3://output"</span>)',
     good:'<span class="c"># ✅ Control file count without bottleneck</span>\ndf.coalesce(<span class="n">10</span>).write.parquet(<span class="s">"s3://output"</span>)\n<span class="c"># or: .option("maxRecordsPerFile", 1000000)</span>',
-    fix:'Use <code>.coalesce(N)</code> where N &gt; 1, or <code>.option(\'maxRecordsPerFile\', N)</code> on the writer. Do not use <code>.repartition()</code> — that triggers a full shuffle (see CY008). If a single file is genuinely required, ensure data fits in executor memory and add <code># cy:ignore CY013</code>.',
+    fix:'Use <code>.coalesce(N)</code> where N &gt; 1 to avoid a shuffle. Use .repartition() only if you need to increase partition count (see CY008). If a single file is genuinely required, ensure data fits in executor memory and add <code># cy:ignore CY013</code>.',
     ladder: [
       { tier:"linter", label:"Linter (free)", output:'<span class="loc">pipeline.py:95:0:</span> CY013 [warning] .coalesce(1) before write forces all data through a single executor. OOM risk on large DataFrames.' },
     ],
     refs:[
       {t:"Blog",txt:"luminousmen — \"People see coalesce(1) and think \'Nice — one output file.\' Except now you\'ve killed parallelism.\"",u:"https://luminousmen.com/post/spark-tips-partition-tuning"},
-      {t:"Blog",txt:"BigDataPerformance — \"forces the entire dataset to be processed by a single executor\"",u:"https://bigdataperformance.com/mastering-spark-partitioning"},
+      {t:"Blog",txt:"BigDataPerformance — \"forces the entire dataset to be processed by a single executor\"",u:"https://bigdataperformance.substack.com/p/mastering-apache-spark-partitioning"},
     ]
   },
   { id:"CY014", name:"Repeated Actions Without .cache()", sev:"critical", cost:"money",
@@ -447,11 +447,12 @@ const RULES = [
       {t:"PySpark",txt:"PySpark — lazy evaluation: transformations build a plan, actions execute it",u:"https://spark.apache.org/docs/latest/rdd-programming-guide.html#rdd-operations"},
     ]
   },
+  
   { id:"CY015", name:"Non-Equi Join (Implicit Cartesian)", sev:"critical", cost:"money",
-    desc:'A <code>.join()</code> with a non-equality condition (e.g., <code>df.a > other.b</code>, <code>F.lit(True)</code>) produces O(n×m) row comparisons — equivalent to a cross join but harder to spot because a condition is syntactically present.',
-    bad:'<span class="c"># ❌ Range condition — O(n×m) comparisons</span>\nresult = df.join(other, df[<span class="s">"ts"</span>] > other[<span class="s">"start"</span>])\n<span class="c"># also: df.join(other, F.lit(True))</span>',
-    good:'<span class="c"># ✅ Equi-join with range filter after</span>\nresult = df.join(other, df[<span class="s">"id"</span>] == other[<span class="s">"id"</span>]).filter(\n    df[<span class="s">"ts"</span>] > other[<span class="s">"start"</span>]\n)',
-    fix:'Include at least one equality condition in the join. If a range join is required, consider a bucketed or sorted merge approach.',
+    desc:'A <code>.join()</code> with only non-equality conditions (e.g., <code>df.a > other.b</code>, <code>F.lit(True)</code>) produces a BroadcastNestedLoopJoin or CartesianProduct — O(n×m) row comparisons. Most range joins have a natural equi-key that should be included alongside the range condition, which lets Spark use a SortMergeJoin or BroadcastHashJoin and apply the range filter post-join.',
+    bad:'<span class="c"># ❌ Range-only condition — O(n×m) comparisons</span>\nresult = events.join(windows,\n    events[<span class="s">"ts"</span>] > windows[<span class="s">"start"</span>]\n)\n<span class="c"># also: df.join(other, F.lit(True))</span>',
+    good:'<span class="c"># ✅ Add the natural equi-key alongside the range condition</span>\nresult = events.join(windows,\n    (events[<span class="s">"user_id"</span>] == windows[<span class="s">"user_id"</span>])\n    &amp; (events[<span class="s">"ts"</span>] > windows[<span class="s">"start"</span>])\n)\n<span class="c"># Spark uses SortMergeJoin on user_id, then evaluates ts > start per partition</span>\n\n<span class="c"># If no equi-key exists and a pure range join is required,</span>\n<span class="c"># ensure the smaller side is broadcast and add # cy:ignore CY015</span>',
+    fix:'Include at least one equality condition in the join. If the query genuinely has no equi-key (pure range join), broadcast the smaller side explicitly and suppress with <code># cy:ignore CY015</code>.',
     snap_pair: "cartesian-product",
     ladder: [
       { tier:"linter", label:"Linter (free)", output:'<span class="loc">pipeline.py:55:0:</span> CY015 [critical] .join() uses a non-equi condition. Produces O(n×m) row comparisons — equivalent to a cross join.' },
@@ -474,8 +475,8 @@ const SNAP_DETECTORS = [
   },
   { id:"column-pruning", name:"Column Pruning Detection", sev:"warning",
     desc:'Detects scans reading significantly more columns than the downstream query requires.  This is much more of a problem with row-based formats than columnar formats because Catalyst is very good at pruning based on the plan\'s computed projection set. Provides exact column counts from the physical plan rather than the heuristic SELECT * detection.',
-    output:'⚠️ <span class="hl">Excess columns</span>: orders scan reads 47 of 50 columns (94% excess)\n   ReadSchema: struct&lt;order_id:long,amount:double,...47 fields&gt;\n   Query uses: order_id, amount, date',
-    why:"CY004 catches <code>SELECT *</code> in SQL strings, but many column waste patterns aren't literal SELECT * — they're DataFrames that carry unnecessary columns through joins. The snapshot sees the actual ReadSchema in the physical plan.",
+    output:'⚠️ <span class="hl">Excess columns</span>: orders scan reads 47 of 50 columns\n  Query uses: order_id, amount, date',
+    why:"CY004 catches <code>SELECT *</code> in SQL strings followed , but many column waste patterns aren't literal SELECT * — they're DataFrames that carry unnecessary columns through joins. The snapshot sees the actual ReadSchema in the physical plan.",
     formula:'<code>savings = scan_coeff × table_gb × (1 − needed_cols/total_cols) × runs</code>',
     linter_link: "CY004",
   },
@@ -490,7 +491,7 @@ const SNAP_DETECTORS = [
     desc:'Detects scans on non-columnar formats (CSV, JSON, text) for tables large enough that format conversion would produce meaningful savings. Columnar formats (Parquet, Delta, ORC) enable column pruning and predicate pushdown.',
     output:'⚠️ <span class="hl">Non-columnar format</span>: events scanned as CSV (1.2TB)\n   CSV cannot skip columns or push predicates\n   Convert to Parquet with typical 3× compression.',
     why:"The linter analyzes source code, not storage metadata. It can't know what format a table is stored in — that's only visible from the scan node in the physical plan.",
-    formula:'<code>savings = scan_coeff × table_gb × (1 − 1/compression_ratio) × runs</code>',
+    formula:'<code>savings = scan_coeff × table_gb × combined_reduction_factor × runs</code>',
   },
   { id:"config-anti", name:"Config Anti-Pattern Detection", sev:"critical",
     desc:'Analyzes the Spark configuration captured with the snapshot. Detects 5 config-level anti-patterns: broadcast joins disabled, AQE disabled, suboptimal shuffle partitions, low broadcast threshold, and skew join disabled. Each produces a dollar amount.',
@@ -504,6 +505,12 @@ const SNAP_DETECTORS = [
     why:"Regressions happen when catalog stats change, configs drift, or Spark is upgraded. They're invisible in source code — the query didn't change, but the plan did. Only snapshot-to-snapshot comparison can detect this.",
     formula:'<code>impact = new_plan_cost − old_plan_cost</code>',
   },
+  { id:"cartesian-product", name:"Cartesian / Non-Equi Join Detection", sev:"critical",
+    desc:'Detects BroadcastNestedLoopJoin and CartesianProduct nodes in the physical plan. These operators compare every row on one side against every row on the other — O(n×m) — regardless of whether the small side is broadcast. A broadcast hint eliminates the shuffle but not the cartesian comparison. This detector catches both explicit cross joins and non-equi joins that the optimizer could not convert to a hash or sort-merge strategy.',
+    output:'🔴 <span class="hl">Cartesian product detected</span>: BroadcastNestedLoopJoin\n   Left: events (1.8TB, 2B rows)\n   Right: windows (4MB, 50K rows, broadcast)\n   Join condition: events.ts > windows.start (non-equi)\n   Comparisons: ~100T row pairs\n   Estimated cost: <span class="hl">~$34,000/month</span>\n\n   Broadcast does NOT help here — it eliminates the shuffle\n   but every row is still compared against every broadcast row.',
+    why:"The linter catches explicit <code>.crossJoin()</code> (CY007) and non-equi conditions (CY015), but it can't determine the actual join strategy chosen by the optimizer. A join that looks equi in source code can still produce a CartesianProduct if Spark can't use the condition for partitioning (e.g., complex expressions, type mismatches). The snapshot sees the physical plan operator directly.",
+    formula:'<code>savings = cartesian_coeff × left_gb × right_gb × runs/month</code><br>If an equi-key exists and was omitted, the fix replaces the cartesian with a SortMergeJoin or BroadcastHashJoin. If the cartesian is intentional, the detector flags it for size monitoring.',
+  }
 ];
 
 // ── Build linter rules ──
