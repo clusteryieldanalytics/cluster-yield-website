@@ -394,6 +394,14 @@ footer p { font-size: 12px; color: var(--text-dim); }
   footer .inner { flex-direction: column; gap: 12px; text-align: center; }
 }
 </style>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet">
+<style>
+  /* Override Prism background to match site theme */
+  pre[class*="language-"], code[class*="language-"] { background: var(--bg) !important; }
+  pre[class*="language-"] { border: 1px solid var(--border); border-radius: 8px; padding: 20px; margin: 16px 0; }
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-python.min.js"></script>
 </head>
 <body>
 
@@ -427,7 +435,7 @@ footer p { font-size: 12px; color: var(--text-dim); }
 
     <p>I scraped 5,046 PySpark repos from GitHub, organized them into tiers based on code maturity, and scanned the repos for anti-patterns. The maturity of a repo was expressed as:</p>
 
-<pre><code># Tier 4 — Production-Adjacent
+<pre><code class="language-python"># Tier 4 — Production-Adjacent
 if (stars > 200 and is_org
         and (has_deploy or contribs > 10 or commits > 500)):
     return 4
