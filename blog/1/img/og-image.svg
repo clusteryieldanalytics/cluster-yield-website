@@ -1,0 +1,102 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0a0c10"/>
+      <stop offset="100%" stop-color="#12151c"/>
+    </linearGradient>
+    <linearGradient id="accent-line" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#3b82f6" stop-opacity="0"/>
+      <stop offset="15%" stop-color="#3b82f6"/>
+      <stop offset="85%" stop-color="#3b82f6"/>
+      <stop offset="100%" stop-color="#3b82f6" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+  
+  <!-- Background -->
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  
+  <!-- Subtle grid -->
+  <g opacity="0.04" stroke="#3b82f6" stroke-width="0.5">
+    <line x1="0" y1="157" x2="1200" y2="157"/>
+    <line x1="0" y1="315" x2="1200" y2="315"/>
+    <line x1="0" y1="473" x2="1200" y2="473"/>
+    <line x1="300" y1="0" x2="300" y2="630"/>
+    <line x1="600" y1="0" x2="600" y2="630"/>
+    <line x1="900" y1="0" x2="900" y2="630"/>
+  </g>
+
+  <!-- Accent line top -->
+  <rect x="0" y="0" width="1200" height="3" fill="#3b82f6"/>
+  
+  <!-- Logo -->
+  <text x="80" y="72" font-family="'JetBrains Mono', 'SF Mono', Consolas, monospace" font-size="18" font-weight="600" fill="#e8ecf4" letter-spacing="-0.5">cluster<tspan fill="#3b82f6">yield</tspan></text>
+  
+  <!-- Divider -->
+  <line x1="80" y1="96" x2="280" y2="96" stroke="#1e2330" stroke-width="1"/>
+  
+  <!-- Title -->
+  <text x="80" y="190" font-family="'JetBrains Mono', 'SF Mono', Consolas, monospace" font-size="38" font-weight="800" fill="#f0f2f7" letter-spacing="-1.5">
+    <tspan x="80" dy="0">We Linted 5,046 PySpark</tspan>
+    <tspan x="80" dy="52">Projects on GitHub.</tspan>
+  </text>
+  
+  <!-- Subtitle -->
+  <text x="80" y="310" font-family="'DM Sans', system-ui, sans-serif" font-size="22" fill="#94a3b8" letter-spacing="-0.3">
+    <tspan x="80" dy="0">Here's what static analysis can and can't</tspan>
+    <tspan x="80" dy="32">tell you about Spark cost optimization.</tspan>
+  </text>
+  
+  <!-- Stats bar -->
+  <rect x="80" y="390" width="1040" height="1" fill="#1e2330"/>
+  
+  <!-- Stat blocks -->
+  <text font-family="'JetBrains Mono', 'SF Mono', Consolas, monospace" fill="#3b82f6" font-size="13" font-weight="600" letter-spacing="0.5">
+    <tspan x="80" y="430">5,046 REPOS</tspan>
+  </text>
+  <text font-family="'DM Sans', system-ui, sans-serif" fill="#6b7280" font-size="14">
+    <tspan x="80" y="454">88K files scanned</tspan>
+  </text>
+
+  <text font-family="'JetBrains Mono', 'SF Mono', Consolas, monospace" fill="#3b82f6" font-size="13" font-weight="600" letter-spacing="0.5">
+    <tspan x="320" y="430">21 RULES</tspan>
+  </text>
+  <text font-family="'DM Sans', system-ui, sans-serif" fill="#6b7280" font-size="14">
+    <tspan x="320" y="454">110K findings</tspan>
+  </text>
+
+  <text font-family="'JetBrains Mono', 'SF Mono', Consolas, monospace" fill="#ef4444" font-size="13" font-weight="600" letter-spacing="0.5">
+    <tspan x="540" y="430">6 PATTERNS</tspan>
+  </text>
+  <text font-family="'DM Sans', system-ui, sans-serif" fill="#6b7280" font-size="14">
+    <tspan x="540" y="454">concentrate in production code</tspan>
+  </text>
+
+  <!-- Mini slope chart hint -->
+  <g transform="translate(880, 400)" opacity="0.6">
+    <!-- Rising lines (red) -->
+    <line x1="0" y1="40" x2="100" y2="10" stroke="#ef4444" stroke-width="1.5" opacity="0.7"/>
+    <line x1="0" y1="35" x2="100" y2="15" stroke="#ef4444" stroke-width="1.5" opacity="0.5"/>
+    <line x1="0" y1="44" x2="100" y2="20" stroke="#ef4444" stroke-width="1.5" opacity="0.4"/>
+    <!-- Declining lines (green) -->
+    <line x1="0" y1="10" x2="100" y2="38" stroke="#22c55e" stroke-width="1.5" opacity="0.5"/>
+    <line x1="0" y1="15" x2="100" y2="45" stroke="#22c55e" stroke-width="1.5" opacity="0.4"/>
+    <line x1="0" y1="5" x2="100" y2="30" stroke="#22c55e" stroke-width="1.5" opacity="0.3"/>
+    <!-- Labels -->
+    <text x="0" y="60" font-family="'JetBrains Mono', monospace" font-size="9" fill="#6b7280">T1</text>
+    <text x="92" y="60" font-family="'JetBrains Mono', monospace" font-size="9" fill="#6b7280">T4</text>
+  </g>
+  
+  <!-- Bottom accent -->
+  <rect x="80" y="500" width="1040" height="1" fill="#1e2330"/>
+  
+  <!-- URL -->
+  <text x="80" y="545" font-family="'JetBrains Mono', 'SF Mono', Consolas, monospace" font-size="14" fill="#6b7280">clusteryield.app</text>
+  
+  <!-- CTA hint -->
+  <rect x="860" y="520" width="260" height="40" rx="6" fill="#3b82f6" opacity="0.12"/>
+  <rect x="860" y="520" width="260" height="40" rx="6" fill="none" stroke="#3b82f6" stroke-width="1" opacity="0.3"/>
+  <text x="990" y="545" font-family="'JetBrains Mono', monospace" font-size="13" font-weight="500" fill="#3b82f6" text-anchor="middle">pip install cylint</text>
+
+  <!-- Border -->
+  <rect x="0" y="0" width="1200" height="630" fill="none" stroke="#1e2330" stroke-width="1"/>
+</svg>

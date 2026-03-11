@@ -3,11 +3,18 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/favicon.png" sizes="32x32" type="image/png">
 <title>We Linted 5,046 PySpark Projects on GitHub — Cluster Yield</title>
 <meta name="description" content="We scanned 5,046 PySpark repos for anti-patterns. Here's what static analysis can and can't tell you about Spark cost optimization.">
 <meta property="og:title" content="We Linted 5,046 PySpark Projects on GitHub">
 <meta property="og:description" content="What static analysis can and can't tell you about Spark cost optimization.">
 <meta property="og:type" content="article">
+<meta property="og:image" content="https://clusteryield.app/blog/1/img/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://clusteryield.app/blog/1/img/og-image.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,400;0,500;0,600;0,700&family=JetBrains+Mono:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -510,19 +517,21 @@ return 1</code></pre>
         <tr><td><a href="https://clusteryield.app/analysis-reference.html#CY004">CY004</a></td><td>SELECT *</td><td>11.9%</td><td>8.3%</td><td>0.70</td><td class="trend-flat">— flat</td></tr>
       </tbody>
     </table>
-    <div class="table-caption">Table 3 — Persistent or rising prevalence (T1 vs T4). These patterns don't fade. <a href="https://clusteryield.app/blog-visualizations.html">Explore the full interactive data →</a></div>
+    <div class="table-caption">Table 3 — Persistent or rising prevalence (T1 vs T4). These patterns don't fade. <a href="https://clusteryield.app/blog/1/blog-visualizations.html">Explore the full interactive data →</a></div>
 
     <p>Interesting! Six patterns are more prevalent in production code than in hobby code. After seeing this my first instinct was to assume I had false positives, so I made extra sure that the linter rules were correct (and this data in fact took several tries to get right). And so the question becomes, what does this data tell us?</p>
 
-    <p><strong>The answer is not straightforward.</strong> I spot checked all of these findings, and verified that all of the findings are legitimate instances.  What I realized while doing this, however, is that <b>many of the antipatterns I caught in production-adjacent code were intentional.</b> </p> 
+    <p><strong>The answer is not straightforward.</strong> I spot checked all of these findings, and the patterns are real.  The code genuinely contains these constructs. But what surprised me is that in production-adjacent repos, most of them are there on purpose.</b> </p> 
     
     <p>First, <a href="https://clusteryield.app/analysis-reference.html#CY007">CY007</a> (cross join). These joins are mostly intentional because mature projects use them deliberately for broadcasting small aggregates or generating candidate pairs. This explains the 1.77x ratio (T4 vs T1): beginners rarely need cross joins, while production recommender systems and feature engineering pipelines do. But what a code review will never tell you is whether those tables are silently growing over time, building up to a performance alert, or worse, a job outage. And this is the line of thinking that led me naturally to start rubbing up against the limits of what standard static analysis can give us.</p>
 
     <p>Similarly, for <a href="https://clusteryield.app/analysis-reference.html#CY017">CY017</a> (window without partitionBy), my spot check revealed that in T4 repos these were all intentional. Developers knowingly use <code>Window.orderBy()</code> without <code>partitionBy()</code> because they genuinely need global ordering (sequential IDs, running totals, lag comparisons). However, the warning is still valid: this forces all data through a single partition, which is a scalability bottleneck.</p>
 
-    <p>One legitimate finding that surprised me is <a href="https://clusteryield.app/analysis-reference.html#CY025">CY025</a> (<code>.cache()</code> without <code>.unpersist()</code>). Some of the examples in the corpus are borderline due to the <code>.unpersist()</code> happening in a different function's scope, but the majority of them in T3/T4 repos are legit memory leaks. The invisible cost here manifests as memory pressure on the executors leaving less room for shuffling.</p>
+    <p>For <a href="https://clusteryield.app/analysis-reference.html#CY003">CY003</a> (<code>.withColumn()</code> in a loop) and <a href="https://clusteryield.app/analysis-reference.html#CY011">CY011</a> (<code>.withColumnRenamed()</code> loop), I was somewhat surprised to see these practices in mature codebases (even though I've done it myself).  Their impact is felt at plan creation time and if you get carried away you can OOM the application.  But they're not patterns that are going to cause excessive shuffling or scanning, and hence won't cost you an arm and a leg... unless you have hundreds of columns, at which point Catalyst's planning time becomes quite noticable.</p>
 
-    <p>And so where does that leave us? Well, it leaves us with the realization that static analysis alone is not going to do a good job predicting problems that are going to cost us money, because we can't always flag an anti-pattern as "universally bad". An antipattern may be intentional because it is the only way of doing something code-wise, and only when an unpredictable state change in config, cluster, plan, or catalog happens, does it turn into a legitimately costly issue. So if we ever want to proactively prevent catastrophic waste in production, we need to either a) prohibit antipatterns altogether and handicap ourselves, or b) commit to spending time and developer effort doing due diligence on each pipeline and table involved to convince ourselves they're never going to change unexpectedly in the future, then verify that with robust monitoring in production. We all know how that goes. But what if there's something else we can do?</p>
+    <p>Another legitimate finding that also surprised me is <a href="https://clusteryield.app/analysis-reference.html#CY025">CY025</a> (<code>.cache()</code> without <code>.unpersist()</code>). Some of the examples in the corpus are borderline due to the <code>.unpersist()</code> happening in a different function's scope, but the majority of them in T3/T4 repos are legit memory leaks. The invisible cost here manifests as memory pressure on the executors leaving less room for shuffling.  Memory leaks ought to be avoided without exception, because they undermine stability and performance.  But I know that sometimes there are bigger fish to fry.</p>
+
+    <p>And so where does that leave us? Well, it leaves us with the realization that <b>static analysis alone is not going to do a good job predicting problems that are going to cost us money, because we can't always flag an anti-pattern as "universally bad"</b>. An antipattern may be intentional because it is the only way of doing something code-wise, and only when an unpredictable state change in config, cluster, plan, or catalog happens, does it turn into a legitimately costly issue. So if we ever want to proactively prevent catastrophic waste in production, we need to either a) prohibit antipatterns altogether and handicap ourselves, or b) commit to spending time and developer effort doing due diligence on each pipeline and table involved to convince ourselves they're never going to change unexpectedly in the future, then verify that with robust monitoring in production. We all know how that goes. But what if there's something else we can do?</p>
 
     <h2>What This Post Is Really About</h2>
 
@@ -533,20 +542,20 @@ return 1</code></pre>
     <ul class="signal-list">
       <li>Static analysis sees the code.</li>
       <li>The catalog knows the table sizes.</li>
-      <li>The optimizer chose the plan.</li>
-      <li>The config shaped the optimizer's choices.</li>
+      <li>The optimizer chooses the plan.</li>
+      <li>The config shapes the optimizer's choices.</li>
       <li>The cost dashboard or systems tables have the cost data.</li>
     </ul>
 
-    <p>These signals all matter, and they all inform the decisions engineers need to make. But the truth is it's easy to miss one or more signals at code review / job creation time because engineering time is valuable and there is an opportunity cost associated with gathering all the relevant data for every potentially costly change. It's not always worth investing the time in quantifying whether a code change will slow things down or cost more, and so what happens is an engineer will iterate until the performance looks "good enough". To quote a colleague:</p>
+    <p>These signals all matter, and they all inform the decisions engineers need to make. But the truth is it's easy to miss one or more signals at code review / job creation time because engineering hours are valuable and there is an opportunity cost associated with gathering all the relevant data for every potentially costly change. It's not always worth investing the time in quantifying whether a code change will slow things down or cost more, and so what happens is an engineer will iterate until the performance looks "good enough". To quote a colleague:</p>
 
     <blockquote>
       <p>"If I have a choice between getting a developer to investigate why our database is slow, or getting them to build another feature, I'll pick the feature every time. We'll just pay to increase the size of the db."</p>
     </blockquote>
 
-    <p>I admit that I myself have taken the easy road and resized a cluster when a deeper dive could have fixed the underlying issue. Not something I'm proud of, but when there are 12 more Airflow DAGs that you need to build, you fix the problem quickly and move on.</p>
+    <p>I admit that I myself have taken the easy road and resized a cluster when a deeper dive could have fixed the underlying issue. Not something I'm proud of, but when there are 12 more Airflow DAGs that you need to build, you fix the current problem quickly and move on.</p>
 
-    <p>Right, let's get back to static analysis and where it falls short. As we just surmised, dear reader, there is a whole class of problems that are invisible to a code linter by definition, and many antipatterns are intentional. So does that mean it's a dead end? Well, not really, no. It just means we need to find creative ways to use the data that is available about our Spark jobs so that we can answer two important questions:</p>
+    <p>So does this mean my goal of using static analysis to identify waste is a dead end? Well, not really, no. It just means I need to find creative ways to use the information from the Spark job to fill in the following gaps:</p>
 
     <ul class="question-list">
       <li>Does this antipattern actually cost money?</li>
@@ -655,7 +664,7 @@ quality.write.mode("overwrite").saveAsTable("blog_demo.converted_quality")</code
     <img src="img/summary.png" alt="Summary table showing total monthly cost and savings" style="width:100%;border-radius:8px;margin:20px 0;border:1px solid var(--border);">
 
 
-    <p>Aha! So we're missing a partition filter and Catalyst can't prune partitions. This is a pitfall that basic linting will never catch because it has no information about table structure, plan optimizations, or table size. At a larger scale (multiple TBs), the fact that we are scanning the full table <strong>six times</strong> starts to matter. From the report, we see the partition pruning detector firing on 5 write actions, plus a missing <code>.cache()</code>, each of the partition pruning findings are critical, and the missing <code>.cache()</code> is a warning. This is narrow, but it gets the point across that code reviews and static analysis alone aren't enough.</p>
+    <p>Aha! So we're missing a partition filter and Catalyst can't prune partitions. This is a pitfall that basic linting will never catch because it has no information about table structure, plan optimizations, or table size. At a larger scale (multiple TBs), the fact that we are scanning the full table <strong>six times</strong> starts to matter (Databricks will cache these DataFrames on SSD storage for you, but it won't prune automatically, and if the table is very large, it's still slower than it needs to be). From the report, we see the partition pruning detector firing on 5 write actions, plus a missing <code>.cache()</code>, each of the partition pruning findings are critical, and the missing <code>.cache()</code> is a warning. This is narrow, but it gets the point across that code reviews and static analysis alone aren't enough.</p>
 
     <p>The linter saw one problem. The snapshot saw six. One tool found a missing .cache(). The other found that every scan in the pipeline was reading 365 partitions when it needed 30. Together, they identified $510/month in waste on a $688/month job. That's 74% of the total cost, hiding in a pipeline that passed code review, ran successfully every day, and never triggered an alert.</p>  
     <p>That's the gap this post is about.  Not "here are some anti-patterns you should avoid." You already know those.  The gap isn't in any one tool.  Good linters exist.  Good monitoring exists.  Good cost dashboards exist.  The gap is that nobody connects them, and the right time to connect them is during code review, not after the bill arrives.  That's what I'm trying to build. </p>
