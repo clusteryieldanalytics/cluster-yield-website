@@ -430,6 +430,38 @@ nav a.nav-link:hover { color: var(--text-bright); }
   letter-spacing: 0.06em; margin: 18px 0 10px; font-family: var(--mono);
 }
 
+/* Waterfall finding detail tray */
+.waterfall-row.clickable { cursor: pointer; }
+.waterfall-row.clickable:hover { background: var(--bg-raised); border-radius: 4px; margin-left: -4px; margin-right: -4px; padding-left: 4px; padding-right: 4px; }
+.waterfall-row.clickable.selected { background: rgba(59,130,246,0.06); border-radius: 4px; margin-left: -4px; margin-right: -4px; padding-left: 4px; padding-right: 4px; }
+.waterfall-detail-tray {
+  display: none; margin: 4px 0 16px;
+  background: var(--bg-raised); border: 1px solid var(--border);
+  border-radius: 8px; padding: 16px 20px;
+  animation: fadeIn 0.15s ease-out;
+}
+.waterfall-detail-tray.visible { display: block; }
+.waterfall-detail-tray .tray-title {
+  font-size: 13px; font-weight: 600; color: var(--heading);
+  margin-bottom: 8px; line-height: 1.4;
+}
+.waterfall-detail-tray .tray-explanation {
+  font-size: 13px; color: var(--text); line-height: 1.7; margin-bottom: 12px;
+}
+.waterfall-detail-tray .tray-fix-label {
+  font-size: 12px; font-weight: 600; color: var(--text-bright); margin-bottom: 4px;
+}
+.waterfall-detail-tray .tray-fix {
+  font-size: 12px; color: var(--text); line-height: 1.6; margin-bottom: 8px;
+}
+.waterfall-detail-tray .tray-calc {
+  font-family: var(--mono); font-size: 11px; color: var(--text-dim);
+}
+.waterfall-detail-tray .tray-savings {
+  font-family: var(--mono); font-size: 13px; font-weight: 600;
+  color: var(--green); margin-bottom: 8px;
+}
+
 /* Methodology & upsell */
 .methodology {
   background: var(--bg-raised); border: 1px solid var(--border);
@@ -762,6 +794,19 @@ async function analyzePlan() {
   state.planText = planText;
   state.costResult = null;
   state.hasCostContext = false;
+  state.costPerRun = null;
+
+  // Clear cost inputs
+  document.getElementById('cost-simple-amount').value = '';
+  document.getElementById('cost-monthly-spend').value = '';
+  document.getElementById('cost-monthly-runs').value = '30';
+  document.getElementById('cost-cluster-instance').value = '';
+  document.getElementById('cost-cluster-nodes').value = '';
+  document.getElementById('cost-cluster-runtime').value = '';
+  const customRate = document.getElementById('cost-cluster-custom-rate');
+  if (customRate) customRate.value = '';
+  document.getElementById('monthly-derived').classList.remove('visible');
+  document.getElementById('cluster-derived').classList.remove('visible');
 
   const btn = document.getElementById('btn-analyze');
   const error = document.getElementById('error-banner');
@@ -1172,12 +1217,16 @@ function renderWaterfall(costData) {
   let html = '<div class="waterfall-title">Cost waterfall</div>';
   html += wfRow('Monthly cost', totalCost, 0, totalCost, 'total', 'cost', '');
 
+  // Store sorted findings for click handling
+  state._waterfallFindings = sorted;
+
   let running = totalCost;
-  sorted.forEach(f => {
+  sorted.forEach((f, fi) => {
     const s = f.waterfallSavings || 0;
     if (s <= 0) return;
     const pct = totalCost > 0 ? Math.round((s / totalCost) * 100) : 0;
-    html += wfRow(shortenTitle(f.title), s, running - s, totalCost, 'savings', 'saving', `-${pct}%`);
+    html += wfRow(shortenTitle(f.title), s, running - s, totalCost, 'savings', 'saving', `-${pct}%`, fi);
+    html += `<div class="waterfall-detail-tray" id="wf-tray-${fi}"></div>`;
     running -= s;
   });
 
@@ -1203,12 +1252,63 @@ function renderWaterfall(costData) {
   }
 
   container.innerHTML = html;
+
+  // Bind click handlers to waterfall finding rows
+  container.querySelectorAll('.waterfall-row.clickable').forEach(row => {
+    row.addEventListener('click', () => {
+      const fi = parseInt(row.dataset.findingIndex);
+      toggleWaterfallTray(fi);
+    });
+  });
 }
 
-function wfRow(label, value, leftOff, max, barCls, amtCls, pctTxt) {
+function toggleWaterfallTray(fi) {
+  const finding = state._waterfallFindings?.[fi];
+  if (!finding) return;
+
+  const tray = document.getElementById(`wf-tray-${fi}`);
+  if (!tray) return;
+
+  // Close other trays
+  document.querySelectorAll('.waterfall-detail-tray.visible').forEach(t => {
+    if (t.id !== `wf-tray-${fi}`) t.classList.remove('visible');
+  });
+  document.querySelectorAll('.waterfall-row.selected').forEach(r => {
+    if (r.dataset.findingIndex !== String(fi)) r.classList.remove('selected');
+  });
+
+  const isOpen = tray.classList.contains('visible');
+  const row = document.querySelector(`.waterfall-row[data-finding-index="${fi}"]`);
+
+  if (isOpen) {
+    tray.classList.remove('visible');
+    if (row) row.classList.remove('selected');
+  } else {
+    // Look up full finding detail from analysis results
+    const allFindings = [
+      ...(state.analysisResult?.findings || []),
+      ...(state.analysisResult?.crossPlanFindings || [])
+    ];
+    const full = allFindings.find(f => f.title === finding.title) || {};
+
+    tray.innerHTML = `
+      <div class="tray-title">${escapeHtml(finding.title)}</div>
+      <div class="tray-savings">~${formatDollars(finding.waterfallSavings)}/mo savings</div>
+      ${full.explanation ? `<div class="tray-explanation">${escapeHtml(full.explanation)}</div>` : ''}
+      ${full.fix ? `<div class="tray-fix-label">Fix</div><div class="tray-fix">${escapeHtml(full.fix)}</div>` : ''}
+      ${finding.calculation ? `<div class="tray-calc">${escapeHtml(finding.calculation)}</div>` : ''}
+    `;
+    tray.classList.add('visible');
+    if (row) row.classList.add('selected');
+  }
+}
+
+function wfRow(label, value, leftOff, max, barCls, amtCls, pctTxt, findingIdx) {
   const w = barPct(value, max), l = barPct(leftOff, max);
   const px = amtCls === 'saving' ? '-' : '';
-  return `<div class="waterfall-row ${barCls === 'optimized' ? 'optimized-row' : ''} ${barCls === 'total' ? 'total-row' : ''}">
+  const clickable = findingIdx !== undefined ? ' clickable' : '';
+  const dataAttr = findingIdx !== undefined ? ` data-finding-index="${findingIdx}"` : '';
+  return `<div class="waterfall-row${clickable} ${barCls === 'optimized' ? 'optimized-row' : ''} ${barCls === 'total' ? 'total-row' : ''}"${dataAttr}>
     <div class="waterfall-label" title="${escapeHtml(label)}">${escapeHtml(label)}</div>
     <div class="waterfall-bar-area">
       ${barCls === 'savings' ? `<div class="waterfall-bar remaining" style="width:${barPct(leftOff, max)}%"></div>` : ''}
@@ -1259,9 +1359,42 @@ function formatDollars(n) {
 
 function escapeHtml(str) {
   if (!str) return '';
+  // First, extract code blocks (```...```) and inline code (`...`) before escaping
+  const codeBlocks = [];
+  let processed = str;
+
+  // Extract triple-backtick code blocks first
+  processed = processed.replace(/```(\w*)\n?([\s\S]*?)```/g, (_, lang, code) => {
+    const idx = codeBlocks.length;
+    codeBlocks.push({ type: 'block', code: code.trim() });
+    return `\x00CODEBLOCK${idx}\x00`;
+  });
+
+  // Extract inline backtick code
+  processed = processed.replace(/`([^`]+)`/g, (_, code) => {
+    const idx = codeBlocks.length;
+    codeBlocks.push({ type: 'inline', code });
+    return `\x00CODEBLOCK${idx}\x00`;
+  });
+
+  // Now escape the remaining text
   const d = document.createElement('div');
-  d.textContent = str;
-  return d.innerHTML;
+  d.textContent = processed;
+  let escaped = d.innerHTML;
+
+  // Restore code blocks with proper HTML
+  escaped = escaped.replace(/\x00CODEBLOCK(\d+)\x00/g, (_, idx) => {
+    const block = codeBlocks[parseInt(idx)];
+    if (block.type === 'block') {
+      const escapedCode = block.code.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      return `<pre style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:10px 14px;font-family:var(--mono);font-size:12px;line-height:1.6;color:var(--text);margin:8px 0;overflow-x:auto;white-space:pre">${escapedCode}</pre>`;
+    } else {
+      const escapedCode = block.code.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      return `<code style="font-family:var(--mono);font-size:0.9em;background:rgba(59,130,246,0.08);color:var(--accent);padding:1px 4px;border-radius:3px">${escapedCode}</code>`;
+    }
+  });
+
+  return escaped;
 }
 
 function showError(msg) {
