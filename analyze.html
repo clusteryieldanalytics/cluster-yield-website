@@ -344,6 +344,24 @@ nav a.nav-link:hover { color: var(--text-bright); }
   font-family: var(--mono); background: rgba(59,130,246,0.08);
   color: var(--accent); padding: 1px 4px; border-radius: 3px; font-size: 11px;
 }
+/* Cross-plan findings */
+.cross-plan-header {
+  font-family: var(--mono); font-size: 11px; font-weight: 600;
+  color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+  margin: 24px 0 8px; display: flex; align-items: center; gap: 8px;
+}
+.cross-plan-header::after {
+  content: ''; flex: 1; height: 1px; background: var(--border);
+}
+.finding-row .plan-labels {
+  font-family: var(--mono); font-size: 10px; color: var(--text-dim);
+  white-space: nowrap; flex-shrink: 0;
+}
+.finding-detail-plans {
+  font-size: 11px; color: var(--text-dim); font-family: var(--mono);
+  margin-bottom: 8px;
+}
+
 /* Missing stats */
 .missing-stats {
   background: var(--amber-dim); border: 1px solid rgba(245,158,11,0.2);
@@ -562,6 +580,7 @@ df.explain(mode=<span class="str">"formatted"</span>)
       <div class="findings-main">
         <div id="missing-stats-container"></div>
         <div id="findings-container"></div>
+        <div id="cross-plan-container"></div>
       </div>
       <div class="findings-sidebar">
         <!-- Summary -->
@@ -774,8 +793,9 @@ async function analyzePlan() {
     renderResults();
 
     // Enable and switch to findings tab
-    const count = data.findings?.length || 0;
-    enableTab('findings', { text: count, green: false });
+    const totalFindings = data.summary?.findingCount ||
+      (data.findings?.length || 0) + (data.crossPlanFindings?.length || 0);
+    enableTab('findings', { text: totalFindings, green: false });
     // Reset costs tab
     document.querySelector('.app-tab[data-tab="costs"]').disabled = true;
     const costBadge = document.querySelector('.app-tab[data-tab="costs"] .tab-badge');
@@ -798,8 +818,8 @@ function renderResults() {
   const data = state.analysisResult;
   if (!data) return;
 
-  // Summary
-  const count = data.findings?.length || 0;
+  // Summary — use server's findingCount which includes both per-plan and cross-plan
+  const count = data.summary?.findingCount || (data.findings?.length || 0) + (data.crossPlanFindings?.length || 0);
   document.getElementById('summary-title').textContent =
     `${count} optimization ${count === 1 ? 'opportunity' : 'opportunities'} found`;
 
@@ -867,6 +887,60 @@ function renderResults() {
 
   // Missing stats
   renderMissingStats(data.missingStats);
+
+  // Cross-plan findings
+  renderCrossPlanFindings(data.crossPlanFindings, data.findings?.length || 0);
+}
+
+function renderCrossPlanFindings(crossFindings, perPlanCount) {
+  const container = document.getElementById('cross-plan-container');
+  container.innerHTML = '';
+  if (!crossFindings || crossFindings.length === 0) return;
+
+  const header = document.createElement('div');
+  header.className = 'cross-plan-header';
+  header.textContent = 'Cross-plan findings';
+  container.appendChild(header);
+
+  const list = document.createElement('div');
+  list.className = 'findings-list';
+
+  crossFindings.forEach((finding, i) => {
+    const idx = perPlanCount + i; // offset index for cost overlay matching
+    const icon = finding.severity === 'CRITICAL' ? '🔴' :
+                 finding.severity === 'WARNING' ? '🟡' : '🔵';
+
+    const row = document.createElement('div');
+    row.className = 'finding-row';
+    row.innerHTML = `
+      <span class="finding-icon">${icon}</span>
+      <span class="finding-row-title">${escapeHtml(finding.title)}</span>
+      ${finding.wasteGbPerRun != null ? `<span class="finding-row-waste">${formatNumber(finding.wasteGbPerRun)} GB</span>` : ''}
+      <span class="finding-row-savings" data-finding-index="x${idx}"></span>
+      ${finding.planLabels ? `<span class="plan-labels">${finding.planLabels.join(', ')}</span>` : ''}
+      <span class="finding-row-chevron">&#9654;</span>
+    `;
+
+    const detail = document.createElement('div');
+    detail.className = 'finding-detail';
+    detail.innerHTML = `
+      ${finding.planLabels ? `<div class="finding-detail-plans">Plans: ${finding.planLabels.join(', ')}</div>` : ''}
+      <div class="finding-detail-explanation">${escapeHtml(finding.explanation)}</div>
+      <div class="finding-detail-fix-label">Fix</div>
+      <div class="finding-detail-fix">${escapeHtml(finding.fix)}</div>
+      <div class="finding-detail-calc" data-finding-index="x${idx}"></div>
+    `;
+
+    row.addEventListener('click', () => {
+      row.classList.toggle('expanded');
+      detail.classList.toggle('visible');
+    });
+
+    list.appendChild(row);
+    list.appendChild(detail);
+  });
+
+  container.appendChild(list);
 }
 
 function renderMissingStats(missingStats) {
@@ -1016,7 +1090,9 @@ async function fetchCost() {
 function renderCostOverlay(costData) {
   const totalSavings = costData.summary?.totalMonthlySavings;
   const totalCost = costData.summary?.totalMonthlyCost;
-  const findingCount = state.analysisResult?.findings?.length || 0;
+  const analysis = state.analysisResult;
+  const findingCount = analysis?.summary?.findingCount ||
+    (analysis?.findings?.length || 0) + (analysis?.crossPlanFindings?.length || 0);
 
   // Update summary
   const summaryTitle = document.getElementById('summary-title');
@@ -1034,21 +1110,36 @@ function renderCostOverlay(costData) {
   // Update findings tab badge
   enableTab('findings', { text: findingCount });
 
-  // Per-finding dollars
+  // Per-finding dollars — match per-plan findings by title
   if (costData.findings) {
-    const analysisTitles = (state.analysisResult?.findings || []).map(f => f.title);
+    const analysisTitles = (analysis?.findings || []).map(f => f.title);
+    const crossTitles = (analysis?.crossPlanFindings || []).map(f => f.title);
+    const perPlanCount = analysis?.findings?.length || 0;
+
     costData.findings.forEach(cf => {
       const savings = cf.waterfallSavings != null ? cf.waterfallSavings : cf.monthlySavings;
+
+      // Try per-plan findings first
       let idx = analysisTitles.indexOf(cf.title);
       if (idx === -1) idx = analysisTitles.findIndex(t => cf.title && t && cf.title.includes(t.substring(0, 40)));
 
+      let selector;
       if (idx !== -1) {
-        const savingsEl = document.querySelector(`.finding-row-savings[data-finding-index="${idx}"]`);
+        selector = idx;
+      } else {
+        // Try cross-plan findings (indexed as "x{N}")
+        let xIdx = crossTitles.indexOf(cf.title);
+        if (xIdx === -1) xIdx = crossTitles.findIndex(t => cf.title && t && cf.title.includes(t.substring(0, 40)));
+        if (xIdx !== -1) selector = `x${perPlanCount + xIdx}`;
+      }
+
+      if (selector !== undefined) {
+        const savingsEl = document.querySelector(`.finding-row-savings[data-finding-index="${selector}"]`);
         if (savingsEl && savings > 0) {
           savingsEl.textContent = `~${formatDollars(savings)}/mo`;
           savingsEl.classList.add('visible');
         }
-        const calcEl = document.querySelector(`.finding-detail-calc[data-finding-index="${idx}"]`);
+        const calcEl = document.querySelector(`.finding-detail-calc[data-finding-index="${selector}"]`);
         if (calcEl && cf.calculation) {
           calcEl.textContent = cf.calculation;
           calcEl.classList.add('visible');
