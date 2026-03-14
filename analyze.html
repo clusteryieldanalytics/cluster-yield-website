@@ -1,0 +1,1192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/favicon.png" sizes="32x32" type="image/png">
+<title>Plan Analysis — Cluster Yield</title>
+<meta name="description" content="Paste your Spark EXPLAIN FORMATTED output and see exactly where your query is wasting money — with dollar amounts on every finding.">
+<meta property="og:title" content="Plan Analysis — Cluster Yield">
+<meta property="og:description" content="Paste a Spark plan, see what it costs. Free, no login required.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,400;0,500;0,600;0,700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #0a0c10;
+  --bg-raised: #12151c;
+  --bg-card: #171b24;
+  --border: #1e2330;
+  --border-light: #2a3040;
+  --text: #c8cdd8;
+  --text-dim: #6b7280;
+  --text-bright: #e8ecf4;
+  --heading: #f0f2f7;
+  --accent: #3b82f6;
+  --accent-dim: #1d4ed8;
+  --green: #22c55e;
+  --green-dim: rgba(34,197,94,0.12);
+  --amber: #f59e0b;
+  --amber-dim: rgba(245,158,11,0.12);
+  --red: #ef4444;
+  --red-dim: rgba(239,68,68,0.10);
+  --mono: 'JetBrains Mono', monospace;
+  --sans: 'DM Sans', system-ui, sans-serif;
+}
+
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: var(--sans);
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.65;
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection { background: rgba(59,130,246,0.3); }
+
+/* — Nav — */
+nav {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+  background: rgba(10,12,16,0.85);
+  backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--border);
+}
+nav .inner {
+  max-width: 1080px; margin: 0 auto; padding: 0 24px;
+  display: flex; align-items: center; justify-content: space-between;
+  height: 60px;
+}
+.logo {
+  font-family: var(--mono); font-weight: 600; font-size: 15px;
+  color: var(--heading); letter-spacing: -0.02em;
+  text-decoration: none;
+}
+.logo span { color: var(--accent); }
+nav a.nav-link {
+  font-size: 14px; color: var(--text-dim); text-decoration: none;
+  transition: color 0.15s;
+}
+nav a.nav-link:hover { color: var(--text-bright); }
+.nav-links { display: flex; gap: 28px; align-items: center; }
+.btn-nav {
+  font-family: var(--mono); font-size: 13px; font-weight: 500;
+  padding: 8px 18px; border-radius: 6px;
+  background: var(--accent); color: #fff;
+  text-decoration: none; transition: background 0.15s;
+}
+.btn-nav:hover { background: var(--accent-dim); }
+
+/* — App shell — */
+.app {
+  padding-top: 60px; min-height: 100vh;
+  display: flex; flex-direction: column;
+}
+
+/* — Tab bar — */
+.tab-bar {
+  background: var(--bg-raised);
+  border-bottom: 1px solid var(--border);
+  position: sticky; top: 60px; z-index: 50;
+}
+.tab-bar-inner {
+  max-width: 1200px; margin: 0 auto; padding: 0 24px;
+  display: flex; gap: 0;
+}
+.app-tab {
+  font-family: var(--mono); font-size: 13px; font-weight: 500;
+  padding: 12px 24px; color: var(--text-dim);
+  background: none; border: none; border-bottom: 2px solid transparent;
+  cursor: pointer; transition: all 0.15s;
+  display: flex; align-items: center; gap: 8px;
+}
+.app-tab:hover { color: var(--text); }
+.app-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+.app-tab:disabled { opacity: 0.35; cursor: not-allowed; }
+.app-tab .tab-badge {
+  font-size: 10px; font-weight: 700; background: var(--accent);
+  color: #fff; padding: 1px 6px; border-radius: 10px;
+}
+.app-tab .tab-badge.green { background: var(--green); }
+
+/* — Tab panels — */
+.tab-panel { display: none; flex: 1; }
+.tab-panel.active { display: block; }
+
+/* — Panel: Analyze — */
+.analyze-panel {
+  max-width: 860px; margin: 0 auto; padding: 48px 24px 80px;
+  width: 100%;
+}
+.analyze-header {
+  margin-bottom: 28px;
+}
+.analyze-label {
+  font-family: var(--mono); font-size: 12px; font-weight: 500;
+  color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+  margin-bottom: 12px;
+}
+.analyze-header h1 {
+  font-size: clamp(24px, 3.5vw, 34px); font-weight: 700;
+  color: var(--heading); line-height: 1.2;
+  letter-spacing: -0.03em; margin-bottom: 10px;
+}
+.analyze-header p {
+  font-size: 15px; color: var(--text); max-width: 540px; line-height: 1.7;
+}
+#plan-input {
+  width: 100%; min-height: 260px; max-height: 500px;
+  padding: 20px; border-radius: 10px;
+  background: var(--bg-raised); border: 1px solid var(--border);
+  color: var(--text-bright); font-family: var(--mono); font-size: 13px;
+  line-height: 1.7; resize: vertical; outline: none;
+  transition: border-color 0.15s;
+}
+#plan-input:focus { border-color: var(--accent); }
+#plan-input::placeholder { color: var(--text-dim); }
+.input-actions {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-top: 14px; flex-wrap: wrap; gap: 12px;
+}
+.btn-analyze {
+  font-family: var(--mono); font-size: 14px; font-weight: 500;
+  padding: 12px 28px; border-radius: 8px;
+  background: var(--accent); color: #fff;
+  border: none; cursor: pointer; transition: all 0.15s;
+  display: inline-flex; align-items: center; gap: 8px;
+}
+.btn-analyze:hover:not(:disabled) { background: var(--accent-dim); transform: translateY(-1px); }
+.btn-analyze:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn-analyze .spinner {
+  width: 14px; height: 14px; border: 2px solid rgba(255,255,255,0.3);
+  border-top-color: #fff; border-radius: 50%;
+  animation: spin 0.6s linear infinite; display: none;
+}
+.btn-analyze.loading .spinner { display: inline-block; }
+.btn-analyze.loading .btn-text { display: none; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.helper-toggle {
+  font-size: 13px; color: var(--text-dim); cursor: pointer;
+  background: none; border: none; font-family: var(--sans);
+  transition: color 0.15s; display: inline-flex; align-items: center; gap: 6px;
+}
+.helper-toggle:hover { color: var(--text); }
+.helper-toggle .arrow { transition: transform 0.15s; font-size: 10px; }
+.helper-toggle.open .arrow { transform: rotate(90deg); }
+.helper-content {
+  display: none; margin-top: 20px;
+  background: var(--bg-raised); border: 1px solid var(--border);
+  border-radius: 10px; padding: 24px; overflow: hidden;
+}
+.helper-content.visible { display: block; }
+.helper-content h3 {
+  font-size: 14px; font-weight: 600; color: var(--text-bright);
+  margin-bottom: 6px; margin-top: 16px;
+}
+.helper-content h3:first-child { margin-top: 0; }
+.helper-content ol { padding-left: 20px; font-size: 13px; color: var(--text); line-height: 1.8; }
+.helper-content pre {
+  background: var(--bg); border: 1px solid var(--border); border-radius: 6px;
+  padding: 12px 16px; font-family: var(--mono); font-size: 12px;
+  line-height: 1.7; color: var(--text); overflow-x: auto; margin-top: 8px; white-space: pre;
+}
+.helper-content .kw { color: var(--accent); }
+.helper-content .str { color: var(--green); }
+.helper-content .comment { color: var(--text-dim); }
+.error-banner {
+  display: none; margin-top: 16px; padding: 14px 18px;
+  background: var(--red-dim); border: 1px solid rgba(239,68,68,0.25);
+  border-radius: 8px; font-size: 14px; color: var(--red); line-height: 1.6;
+}
+.error-banner.visible { display: block; }
+
+/* — Panel: Findings (two-column) — */
+.findings-panel {
+  max-width: 1200px; margin: 0 auto; padding: 32px 24px 80px;
+  display: grid; grid-template-columns: 1fr 300px; gap: 24px;
+  width: 100%;
+}
+.findings-main { min-width: 0; }
+.findings-sidebar {
+  position: sticky; top: 128px; align-self: start;
+}
+
+/* Summary card */
+.summary-card {
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: 10px; padding: 20px; margin-bottom: 16px;
+}
+.summary-title {
+  font-size: 15px; font-weight: 700; color: var(--heading);
+  line-height: 1.35; margin-bottom: 8px;
+}
+.summary-tables {
+  font-size: 11px; color: var(--text-dim); font-family: var(--mono);
+  line-height: 1.7;
+}
+.summary-cost {
+  font-size: 11px; color: var(--text-dim); font-family: var(--mono);
+  line-height: 1.7; margin-top: 4px; display: none;
+}
+.summary-cost.visible { display: block; }
+.photon-note {
+  display: none; font-size: 11px; color: var(--accent);
+  padding: 8px 12px; background: rgba(59,130,246,0.06);
+  border: 1px solid rgba(59,130,246,0.15);
+  border-radius: 6px; margin-top: 8px; font-family: var(--mono);
+}
+.photon-note.visible { display: block; }
+
+/* Cost input — compact */
+.cost-card {
+  background: var(--bg-card); border: 1px solid var(--accent-dim);
+  border-radius: 10px; padding: 16px; margin-bottom: 16px;
+}
+.cost-card-title {
+  font-size: 12px; font-weight: 600; color: var(--heading);
+  margin-bottom: 12px;
+}
+.cost-tabs {
+  display: flex; gap: 0; margin-bottom: 12px;
+  border: 1px solid var(--border); border-radius: 6px;
+  overflow: hidden;
+}
+.cost-tab {
+  font-family: var(--mono); font-size: 11px; font-weight: 500;
+  padding: 5px 12px; background: var(--bg-raised);
+  border: none; border-right: 1px solid var(--border);
+  color: var(--text-dim); cursor: pointer; transition: all 0.15s;
+  flex: 1; text-align: center;
+}
+.cost-tab:last-child { border-right: none; }
+.cost-tab:hover { color: var(--text); }
+.cost-tab.active { background: var(--accent); color: #fff; }
+.cost-pane { display: none; }
+.cost-pane.active { display: block; }
+.cost-field { margin-bottom: 10px; }
+.cost-field:last-child { margin-bottom: 0; }
+.cost-field label {
+  display: block; font-size: 11px; color: var(--text-dim);
+  margin-bottom: 4px;
+}
+.cost-field input, .cost-field select {
+  width: 100%; padding: 7px 10px; border-radius: 6px;
+  background: var(--bg); border: 1px solid var(--border-light);
+  color: var(--text-bright); font-family: var(--sans); font-size: 13px;
+  outline: none; transition: border-color 0.15s;
+}
+.cost-field input:focus, .cost-field select:focus { border-color: var(--accent); }
+.cost-field select { cursor: pointer; }
+.cost-field select option { background: var(--bg); color: var(--text-bright); }
+.cost-field .hint { font-size: 10px; color: var(--text-dim); margin-top: 2px; }
+.cost-derived {
+  font-family: var(--mono); font-size: 11px; color: var(--text-dim);
+  margin-top: 8px; padding: 6px 10px;
+  background: var(--bg-raised); border-radius: 6px; display: none;
+}
+.cost-derived.visible { display: block; }
+.cost-derived strong { color: var(--text-bright); }
+.runs-field { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); }
+
+/* Findings list */
+.findings-list {
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: 10px; overflow: hidden; margin-bottom: 24px;
+}
+.finding-row {
+  display: flex; align-items: center; gap: 12px;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer; transition: background 0.1s;
+}
+.finding-row:hover { background: var(--bg-raised); }
+.finding-icon { font-size: 14px; flex-shrink: 0; width: 20px; text-align: center; }
+.finding-row-title {
+  font-size: 14px; font-weight: 500; color: var(--text-bright);
+  flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.finding-row-waste {
+  font-family: var(--mono); font-size: 12px; color: var(--amber);
+  white-space: nowrap; flex-shrink: 0;
+}
+.finding-row-savings {
+  font-family: var(--mono); font-size: 13px; font-weight: 600; color: var(--green);
+  white-space: nowrap; flex-shrink: 0; text-align: right; display: none;
+}
+.finding-row-savings.visible { display: inline; }
+.finding-row-chevron {
+  color: var(--text-dim); font-size: 10px; flex-shrink: 0;
+  transition: transform 0.15s;
+}
+.finding-row.expanded .finding-row-chevron { transform: rotate(90deg); }
+.finding-detail {
+  display: none; padding: 0 20px 16px 52px;
+  border-bottom: 1px solid var(--border);
+  animation: fadeIn 0.15s ease-out;
+}
+.finding-detail.visible { display: block; }
+.finding-detail-explanation { font-size: 13px; color: var(--text); line-height: 1.7; margin-bottom: 12px; }
+.finding-detail-fix-label { font-size: 12px; font-weight: 600; color: var(--text-bright); margin-bottom: 4px; }
+.finding-detail-fix {
+  background: var(--bg); border: 1px solid var(--border); border-radius: 6px;
+  padding: 10px 14px; font-family: var(--mono); font-size: 12px;
+  line-height: 1.6; color: var(--text); margin-bottom: 8px;
+}
+.finding-detail-calc { font-size: 11px; color: var(--text-dim); font-family: var(--mono); display: none; }
+.finding-detail-calc.visible { display: block; }
+.finding-detail-rule { font-size: 11px; color: var(--text-dim); margin-top: 6px; }
+.finding-detail-rule code {
+  font-family: var(--mono); background: rgba(59,130,246,0.08);
+  color: var(--accent); padding: 1px 4px; border-radius: 3px; font-size: 11px;
+}
+/* Missing stats */
+.missing-stats {
+  background: var(--amber-dim); border: 1px solid rgba(245,158,11,0.2);
+  border-radius: 8px; padding: 14px 16px; margin-bottom: 16px;
+}
+.missing-stats p { font-size: 12px; color: var(--amber); margin-bottom: 8px; line-height: 1.6; }
+.missing-stats-inputs { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.missing-stats-field { display: flex; align-items: center; gap: 4px; }
+.missing-stats-field label { font-family: var(--mono); font-size: 11px; color: var(--text); }
+.missing-stats-field input {
+  width: 70px; padding: 4px 8px; border-radius: 6px;
+  background: var(--bg); border: 1px solid var(--border-light);
+  color: var(--text-bright); font-family: var(--mono); font-size: 11px;
+  outline: none; text-align: right;
+}
+.missing-stats-field .unit { font-size: 11px; color: var(--text-dim); }
+.btn-recalc {
+  font-family: var(--mono); font-size: 11px; font-weight: 500;
+  padding: 4px 12px; border-radius: 6px;
+  background: var(--bg-card); border: 1px solid var(--border-light);
+  color: var(--text); cursor: pointer; transition: all 0.15s;
+}
+.btn-recalc:hover { border-color: var(--text-dim); color: var(--text-bright); }
+
+/* — Panel: Costs — */
+.costs-panel {
+  max-width: 960px; margin: 0 auto; padding: 32px 24px 80px; width: 100%;
+}
+
+/* Waterfall chart */
+.waterfall {
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: 10px; padding: 24px 28px; margin-bottom: 24px;
+}
+.waterfall-title { font-size: 14px; font-weight: 700; color: var(--heading); margin-bottom: 20px; }
+.waterfall-row {
+  display: flex; align-items: center; gap: 12px;
+  margin-bottom: 8px; font-family: var(--mono); font-size: 12px;
+}
+.waterfall-label {
+  width: 180px; flex-shrink: 0; color: var(--text);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: right;
+}
+.waterfall-bar-area {
+  flex: 1; height: 28px; position: relative;
+  background: var(--bg); border-radius: 4px; overflow: hidden;
+}
+.waterfall-bar {
+  height: 100%; border-radius: 4px; position: absolute; top: 0;
+  transition: width 0.4s ease, left 0.4s ease; min-width: 2px;
+}
+.waterfall-bar.total { background: var(--accent); left: 0; }
+.waterfall-bar.savings { background: var(--red); opacity: 0.7; }
+.waterfall-bar.remaining { background: rgba(59,130,246,0.3); left: 0; }
+.waterfall-bar.optimized { background: var(--green); left: 0; }
+.waterfall-amount { width: 100px; flex-shrink: 0; text-align: right; font-weight: 600; }
+.waterfall-amount.cost { color: var(--text-bright); }
+.waterfall-amount.saving { color: var(--red); }
+.waterfall-amount.result { color: var(--green); }
+.waterfall-separator { border: none; border-top: 1px dashed var(--border-light); margin: 14px 0; }
+.waterfall-row.total-row .waterfall-label { font-weight: 600; color: var(--heading); }
+.waterfall-row.optimized-row .waterfall-label { font-weight: 600; color: var(--green); }
+.waterfall-pct { font-size: 11px; color: var(--text-dim); width: 50px; flex-shrink: 0; }
+.waterfall-plan-header {
+  font-size: 11px; color: var(--text-dim); text-transform: uppercase;
+  letter-spacing: 0.06em; margin: 18px 0 10px; font-family: var(--mono);
+}
+
+/* Methodology & upsell */
+.methodology {
+  background: var(--bg-raised); border: 1px solid var(--border);
+  border-radius: 10px; padding: 24px 28px; margin-bottom: 20px;
+  font-size: 13px; color: var(--text-dim); line-height: 1.8;
+}
+.methodology h3 { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 6px; }
+.methodology a { color: var(--accent); text-decoration: none; }
+.upsell {
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: 10px; padding: 24px 28px; margin-bottom: 24px;
+}
+.upsell h3 { font-size: 15px; font-weight: 700; color: var(--heading); margin-bottom: 10px; }
+.upsell p { font-size: 13px; color: var(--text-dim); line-height: 1.7; margin-bottom: 10px; }
+.upsell-items { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px; }
+.upsell-item {
+  padding: 14px 16px; background: var(--bg-raised);
+  border: 1px solid var(--border); border-radius: 8px;
+}
+.upsell-item .tag {
+  font-family: var(--mono); font-size: 10px; font-weight: 600;
+  letter-spacing: 0.05em; text-transform: uppercase;
+  color: var(--green); margin-bottom: 4px; display: block;
+}
+.upsell-item code { font-family: var(--mono); font-size: 13px; color: var(--accent); display: block; margin-bottom: 4px; }
+.upsell-item p { font-size: 12px; margin-bottom: 0; }
+.upsell-contact { margin-top: 12px; font-size: 13px; color: var(--text); }
+.upsell-contact a { color: var(--accent); text-decoration: none; }
+
+/* — Footer — */
+footer { padding: 32px 0; border-top: 1px solid var(--border); }
+footer .inner {
+  max-width: 1080px; margin: 0 auto; padding: 0 24px;
+  display: flex; justify-content: space-between; align-items: center;
+}
+footer p { font-size: 13px; color: var(--text-dim); }
+footer a { color: var(--text-dim); text-decoration: none; }
+
+/* — Responsive — */
+@media (max-width: 900px) {
+  .findings-panel { grid-template-columns: 1fr; }
+  .findings-sidebar { position: static; }
+}
+@media (max-width: 768px) {
+  .finding-row-title { white-space: normal; }
+  .finding-row { flex-wrap: wrap; padding: 12px 16px; }
+  .finding-detail { padding-left: 36px; }
+  .upsell-items { grid-template-columns: 1fr; }
+  .nav-links .nav-link { display: none; }
+  footer .inner { flex-direction: column; gap: 12px; text-align: center; }
+  .waterfall-label { width: 120px; }
+}
+
+/* — Animations — */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.analyze-header h1, .analyze-header p { animation: fadeUp 0.5s ease-out both; }
+.analyze-header p { animation-delay: 0.08s; }
+.findings-list { animation: fadeUp 0.3s ease-out both; }
+.waterfall { animation: fadeUp 0.3s ease-out both; }
+</style>
+</head>
+<body>
+
+<!-- Nav -->
+<nav>
+  <div class="inner">
+    <a href="/" class="logo">cluster<span>yield</span></a>
+    <div class="nav-links">
+      <a href="/#how" class="nav-link">How it works</a>
+      <a href="/#findings" class="nav-link">Sample findings</a>
+      <a href="/#engage" class="nav-link">Pricing</a>
+      <a href="/blog/index.html" class="nav-link">Blog</a>
+      <a href="mailto:hello@clusteryield.app" class="btn-nav">Get started</a>
+    </div>
+  </div>
+</nav>
+
+<div class="app">
+
+  <!-- Tab bar -->
+  <div class="tab-bar">
+    <div class="tab-bar-inner">
+      <button class="app-tab active" data-tab="analyze" onclick="switchTab('analyze')">Analyze</button>
+      <button class="app-tab" data-tab="findings" id="tab-findings" disabled onclick="switchTab('findings')">Findings</button>
+      <button class="app-tab" data-tab="costs" id="tab-costs" disabled onclick="switchTab('costs')">Costs</button>
+    </div>
+  </div>
+
+  <!-- Tab 1: Analyze -->
+  <div class="tab-panel active" id="panel-analyze">
+    <div class="analyze-panel">
+      <div class="analyze-header">
+        <div class="analyze-label">Free tool</div>
+        <h1>Paste a Spark plan, see what it costs</h1>
+        <p>Paste your EXPLAIN FORMATTED output below. No account required.</p>
+      </div>
+
+      <textarea id="plan-input" placeholder="Paste your EXPLAIN FORMATTED output here...
+
+== Physical Plan ==
+AdaptiveSparkPlan isFinalPlan=true
++- SortMergeJoin [customer_id#12], [customer_id#45], Inner
+   :- Sort [customer_id#12 ASC NULLS FIRST]
+   ..."></textarea>
+
+      <div class="input-actions">
+        <button class="btn-analyze" id="btn-analyze" onclick="analyzePlan()">
+          <span class="btn-text">Analyze plan</span>
+          <span class="spinner"></span>
+        </button>
+        <button class="helper-toggle" id="helper-toggle" onclick="toggleHelper()">
+          How to get your plan <span class="arrow">&#9654;</span>
+        </button>
+      </div>
+
+      <div class="helper-content" id="helper-content">
+        <h3>Databricks</h3>
+        <ol>
+          <li>Open a notebook or go to SQL Editor</li>
+          <li>Run your query</li>
+          <li>Click "Query details" in the results panel</li>
+          <li>Scroll to "Physical plan"</li>
+          <li>Click "Copy" or select all and copy</li>
+          <li>Paste here</li>
+        </ol>
+        <h3>PySpark / spark-submit</h3>
+        <pre>df = spark.sql(<span class="str">"SELECT ..."</span>)
+df.explain(mode=<span class="str">"formatted"</span>)
+<span class="comment"># Copy the output from the console</span></pre>
+        <h3>Spark SQL</h3>
+        <pre><span class="kw">EXPLAIN FORMATTED</span> <span class="kw">SELECT</span> ...;</pre>
+      </div>
+
+      <div class="error-banner" id="error-banner"></div>
+    </div>
+  </div>
+
+  <!-- Tab 2: Findings (two-column) -->
+  <div class="tab-panel" id="panel-findings">
+    <div class="findings-panel">
+      <div class="findings-main">
+        <div id="missing-stats-container"></div>
+        <div id="findings-container"></div>
+      </div>
+      <div class="findings-sidebar">
+        <!-- Summary -->
+        <div class="summary-card">
+          <div class="summary-title" id="summary-title"></div>
+          <div class="summary-tables" id="summary-tables"></div>
+          <div class="summary-cost" id="summary-cost"></div>
+          <div class="photon-note" id="photon-note">Photon detected — cost model adjusted.</div>
+        </div>
+        <!-- Cost input -->
+        <div class="cost-card">
+          <div class="cost-card-title">Add job cost for dollar estimates</div>
+          <div class="cost-tabs">
+            <button class="cost-tab active" data-mode="simple" onclick="switchCostTab('simple')">Simple</button>
+            <button class="cost-tab" data-mode="monthly" onclick="switchCostTab('monthly')">Monthly</button>
+            <button class="cost-tab" data-mode="cluster" onclick="switchCostTab('cluster')">Cluster</button>
+          </div>
+          <!-- Simple -->
+          <div class="cost-pane active" id="pane-simple">
+            <div class="cost-field">
+              <label>Cost per run ($)</label>
+              <input type="number" id="cost-simple-amount" placeholder="e.g. 16" min="0" step="0.01" oninput="onCostInput()">
+            </div>
+          </div>
+          <!-- Monthly -->
+          <div class="cost-pane" id="pane-monthly">
+            <div class="cost-field">
+              <label>Monthly spend ($)</label>
+              <input type="number" id="cost-monthly-spend" placeholder="e.g. 480" min="0" step="0.01" oninput="onCostInput()">
+            </div>
+            <div class="cost-field">
+              <label>Runs per month</label>
+              <input type="number" id="cost-monthly-runs" placeholder="30" min="1" step="1" value="30" oninput="onCostInput()">
+            </div>
+            <div class="cost-derived" id="monthly-derived"></div>
+          </div>
+          <!-- Cluster -->
+          <div class="cost-pane" id="pane-cluster">
+            <div class="cost-field">
+              <label>Instance type</label>
+              <select id="cost-cluster-instance" onchange="onCostInput()">
+                <option value="">Select...</option>
+                <option value="3.12">i3.xlarge — $3.12/hr</option>
+                <option value="6.24">i3.2xlarge — $6.24/hr</option>
+                <option value="12.48">i3.4xlarge — $12.48/hr</option>
+                <option value="2.52">r5.xlarge — $2.52/hr</option>
+                <option value="5.04">r5.2xlarge — $5.04/hr</option>
+                <option value="10.08">r5.4xlarge — $10.08/hr</option>
+                <option value="1.92">m5.xlarge — $1.92/hr</option>
+                <option value="3.84">m5.2xlarge — $3.84/hr</option>
+                <option value="7.68">m5.4xlarge — $7.68/hr</option>
+                <option value="custom">Custom rate...</option>
+              </select>
+            </div>
+            <div class="cost-field" id="custom-rate-field" style="display:none">
+              <label>Custom rate ($/hr per node)</label>
+              <input type="number" id="cost-cluster-custom-rate" placeholder="e.g. 4.50" min="0" step="0.01" oninput="onCostInput()">
+            </div>
+            <div class="cost-field">
+              <label>Nodes</label>
+              <input type="number" id="cost-cluster-nodes" placeholder="e.g. 4" min="1" step="1" oninput="onCostInput()">
+            </div>
+            <div class="cost-field">
+              <label>Runtime (minutes)</label>
+              <input type="number" id="cost-cluster-runtime" placeholder="e.g. 45" min="1" step="1" oninput="onCostInput()">
+            </div>
+            <div class="cost-derived" id="cluster-derived"></div>
+          </div>
+          <!-- Runs per month (shared) -->
+          <div class="runs-field" id="runs-field">
+            <div class="cost-field">
+              <label>Runs per month</label>
+              <input type="number" id="cost-runs-per-month" placeholder="30" min="1" step="1" value="30" oninput="onCostInput()">
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tab 3: Costs -->
+  <div class="tab-panel" id="panel-costs">
+    <div class="costs-panel">
+      <div id="waterfall-chart"></div>
+      <div class="methodology">
+        <h3>Methodology</h3>
+        <p>Dollar estimates are derived from your job cost input, distributed across plan operators by data volume. Coefficients are calibrated per operator type and adjusted for Photon when detected.</p>
+      </div>
+      <div class="upsell">
+        <h3>Want these numbers on every PR?</h3>
+        <p>The Cluster Yield linter catches anti-patterns in source code. The snapshot analysis prices them with your actual table sizes.</p>
+        <div class="upsell-items">
+          <div class="upsell-item">
+            <span class="tag">Free</span>
+            <code>pip install cylint</code>
+            <p>Open-source PySpark linter. 20 rules, runs in CI.</p>
+          </div>
+          <div class="upsell-item">
+            <span class="tag">Full analysis</span>
+            <code>clusteryield.app</code>
+            <p>Enriched CI with dollar amounts on every PR.</p>
+          </div>
+        </div>
+        <div class="upsell-contact">
+          Want help implementing these fixes? <a href="mailto:hello@clusteryield.app">hello@clusteryield.app</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Footer -->
+<footer>
+  <div class="inner">
+    <p>&copy; 2026 Cluster Yield Analytics</p>
+    <p>Spark &amp; Databricks Cost Optimization</p>
+  </div>
+</footer>
+
+<script>
+// ============================================================
+// State
+// ============================================================
+let state = {
+  planText: '',
+  analysisResult: null,
+  analysisId: null,
+  costInputMode: 'simple',
+  costPerRun: null,
+  runsPerMonth: 30,
+  costResult: null,
+  manualTableSizes: {},
+  hasCostContext: false,
+};
+
+const API_BASE = 'https://api.clusteryield.app/api/v1';
+let costDebounceTimer = null;
+
+// ============================================================
+// Tab switching
+// ============================================================
+function switchTab(tab) {
+  document.querySelectorAll('.app-tab').forEach(t => t.classList.remove('active'));
+  document.querySelector(`.app-tab[data-tab="${tab}"]`).classList.add('active');
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById(`panel-${tab}`).classList.add('active');
+}
+
+function enableTab(tab, badge) {
+  const tabEl = document.querySelector(`.app-tab[data-tab="${tab}"]`);
+  tabEl.disabled = false;
+  const existing = tabEl.querySelector('.tab-badge');
+  if (existing) existing.remove();
+  if (badge) {
+    const span = document.createElement('span');
+    span.className = 'tab-badge' + (badge.green ? ' green' : '');
+    span.textContent = badge.text;
+    tabEl.appendChild(span);
+  }
+}
+
+// ============================================================
+// Helper toggle
+// ============================================================
+function toggleHelper() {
+  document.getElementById('helper-toggle').classList.toggle('open');
+  document.getElementById('helper-content').classList.toggle('visible');
+}
+
+// ============================================================
+// Analyze plan
+// ============================================================
+async function analyzePlan() {
+  const textarea = document.getElementById('plan-input');
+  const planText = textarea.value.trim();
+  if (!planText) return;
+
+  state.planText = planText;
+  state.costResult = null;
+  state.hasCostContext = false;
+
+  const btn = document.getElementById('btn-analyze');
+  const error = document.getElementById('error-banner');
+  error.classList.remove('visible');
+  btn.classList.add('loading');
+  btn.disabled = true;
+
+  try {
+    const body = { planText };
+    if (Object.keys(state.manualTableSizes).length > 0) {
+      body.manualTableSizes = state.manualTableSizes;
+    }
+
+    const res = await fetch(`${API_BASE}/analyze-plan`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+
+    if (!res.ok) {
+      const errData = await res.json().catch(() => null);
+      throw new Error(errData?.detail || errData?.message || `Analysis failed (${res.status})`);
+    }
+
+    const data = await res.json();
+    state.analysisResult = data;
+    state.analysisId = data.analysisId;
+
+    renderResults();
+
+    // Enable and switch to findings tab
+    const count = data.findings?.length || 0;
+    enableTab('findings', { text: count, green: false });
+    // Reset costs tab
+    document.querySelector('.app-tab[data-tab="costs"]').disabled = true;
+    const costBadge = document.querySelector('.app-tab[data-tab="costs"] .tab-badge');
+    if (costBadge) costBadge.remove();
+
+    switchTab('findings');
+  } catch (err) {
+    error.textContent = err.message || 'Something went wrong. Please check your plan text and try again.';
+    error.classList.add('visible');
+  } finally {
+    btn.classList.remove('loading');
+    btn.disabled = false;
+  }
+}
+
+// ============================================================
+// Render results (Phase 1)
+// ============================================================
+function renderResults() {
+  const data = state.analysisResult;
+  if (!data) return;
+
+  // Summary
+  const count = data.findings?.length || 0;
+  document.getElementById('summary-title').textContent =
+    `${count} optimization ${count === 1 ? 'opportunity' : 'opportunities'} found`;
+
+  const summaryTables = document.getElementById('summary-tables');
+  if (data.plans && data.plans.length > 0) {
+    const allTables = data.plans.flatMap(p => p.tables || []);
+    if (allTables.length > 0) {
+      summaryTables.textContent = allTables.map(t =>
+        `${t.name.split('.').pop()} (${formatSize(t.sizeGb)})`
+      ).join(', ');
+    }
+  }
+
+  // Photon
+  const photonNote = document.getElementById('photon-note');
+  if (data.summary?.photonDetected) photonNote.classList.add('visible');
+  else photonNote.classList.remove('visible');
+
+  // Reset cost display
+  document.getElementById('summary-cost').classList.remove('visible');
+
+  // Findings
+  const container = document.getElementById('findings-container');
+  container.innerHTML = '';
+
+  if (data.findings && data.findings.length > 0) {
+    const list = document.createElement('div');
+    list.className = 'findings-list';
+
+    data.findings.forEach((finding, i) => {
+      const icon = finding.severity === 'CRITICAL' ? '🔴' :
+                   finding.severity === 'WARNING' ? '🟡' : '🔵';
+
+      const row = document.createElement('div');
+      row.className = 'finding-row';
+      row.innerHTML = `
+        <span class="finding-icon">${icon}</span>
+        <span class="finding-row-title">${escapeHtml(finding.title)}</span>
+        ${finding.wasteGbPerRun != null ? `<span class="finding-row-waste">${formatNumber(finding.wasteGbPerRun)} GB</span>` : ''}
+        <span class="finding-row-savings" data-finding-index="${i}"></span>
+        <span class="finding-row-chevron">&#9654;</span>
+      `;
+
+      const detail = document.createElement('div');
+      detail.className = 'finding-detail';
+      detail.innerHTML = `
+        <div class="finding-detail-explanation">${escapeHtml(finding.explanation)}</div>
+        <div class="finding-detail-fix-label">Fix</div>
+        <div class="finding-detail-fix">${escapeHtml(finding.fix)}</div>
+        <div class="finding-detail-calc" data-finding-index="${i}"></div>
+        ${finding.relatedLinterRule ? `<div class="finding-detail-rule">Linter rule: <code>${escapeHtml(finding.relatedLinterRule)}</code></div>` : ''}
+      `;
+
+      row.addEventListener('click', () => {
+        row.classList.toggle('expanded');
+        detail.classList.toggle('visible');
+      });
+
+      list.appendChild(row);
+      list.appendChild(detail);
+    });
+
+    container.appendChild(list);
+  }
+
+  // Missing stats
+  renderMissingStats(data.missingStats);
+}
+
+function renderMissingStats(missingStats) {
+  const container = document.getElementById('missing-stats-container');
+  container.innerHTML = '';
+  if (!missingStats || missingStats.length === 0) return;
+
+  const tableNames = [...new Set(missingStats.map(m => m.tableName))];
+  const div = document.createElement('div');
+  div.className = 'missing-stats';
+  div.innerHTML = `
+    <p>Some tables are missing size statistics. Enter sizes manually:</p>
+    <div class="missing-stats-inputs">
+      ${tableNames.map(name => `
+        <div class="missing-stats-field">
+          <label>${escapeHtml(name.split('.').pop())}:</label>
+          <input type="number" placeholder="0" min="0" step="0.1"
+                 data-table="${escapeHtml(name)}"
+                 value="${state.manualTableSizes[name] || ''}"
+                 oninput="onManualSizeInput(this)">
+          <span class="unit">GB</span>
+        </div>
+      `).join('')}
+      <button class="btn-recalc" onclick="reAnalyzeWithSizes()">Re-analyze</button>
+    </div>
+  `;
+  container.appendChild(div);
+}
+
+function onManualSizeInput(input) {
+  const table = input.dataset.table;
+  const val = parseFloat(input.value);
+  if (!isNaN(val) && val >= 0) state.manualTableSizes[table] = val;
+  else delete state.manualTableSizes[table];
+}
+
+async function reAnalyzeWithSizes() { await analyzePlan(); }
+
+// ============================================================
+// Cost input handling
+// ============================================================
+function switchCostTab(mode) {
+  state.costInputMode = mode;
+  document.querySelectorAll('.cost-tab').forEach(t => t.classList.remove('active'));
+  document.querySelector(`.cost-tab[data-mode="${mode}"]`).classList.add('active');
+  document.querySelectorAll('.cost-pane').forEach(p => p.classList.remove('active'));
+  document.getElementById(`pane-${mode}`).classList.add('active');
+  document.getElementById('runs-field').style.display = mode === 'monthly' ? 'none' : '';
+  if (mode === 'cluster') {
+    const sel = document.getElementById('cost-cluster-instance');
+    document.getElementById('custom-rate-field').style.display = sel.value === 'custom' ? '' : 'none';
+  }
+  onCostInput();
+}
+
+function onCostInput() {
+  const mode = state.costInputMode;
+  let costPerRun = null;
+  let runsPerMonth = 30;
+
+  if (mode === 'simple') {
+    const amt = parseFloat(document.getElementById('cost-simple-amount').value);
+    if (!isNaN(amt) && amt > 0) costPerRun = amt;
+    runsPerMonth = parseInt(document.getElementById('cost-runs-per-month').value) || 30;
+  } else if (mode === 'monthly') {
+    const spend = parseFloat(document.getElementById('cost-monthly-spend').value);
+    const runs = parseInt(document.getElementById('cost-monthly-runs').value) || 30;
+    runsPerMonth = runs;
+    if (!isNaN(spend) && spend > 0 && runs > 0) {
+      costPerRun = spend / runs;
+      const derived = document.getElementById('monthly-derived');
+      derived.innerHTML = `Cost per run: <strong>$${costPerRun.toFixed(2)}</strong>`;
+      derived.classList.add('visible');
+    } else {
+      document.getElementById('monthly-derived').classList.remove('visible');
+    }
+  } else if (mode === 'cluster') {
+    const sel = document.getElementById('cost-cluster-instance');
+    document.getElementById('custom-rate-field').style.display = sel.value === 'custom' ? '' : 'none';
+    let ratePerHr = sel.value === 'custom'
+      ? parseFloat(document.getElementById('cost-cluster-custom-rate').value)
+      : parseFloat(sel.value);
+    const nodes = parseInt(document.getElementById('cost-cluster-nodes').value);
+    const runtime = parseFloat(document.getElementById('cost-cluster-runtime').value);
+    runsPerMonth = parseInt(document.getElementById('cost-runs-per-month').value) || 30;
+    if (!isNaN(ratePerHr) && ratePerHr > 0 && nodes > 0 && runtime > 0) {
+      costPerRun = nodes * ratePerHr * (runtime / 60);
+      const derived = document.getElementById('cluster-derived');
+      derived.innerHTML = `Cost per run: <strong>$${costPerRun.toFixed(2)}</strong>`;
+      derived.classList.add('visible');
+    } else {
+      document.getElementById('cluster-derived').classList.remove('visible');
+    }
+  }
+
+  state.costPerRun = costPerRun;
+  state.runsPerMonth = runsPerMonth;
+
+  if (costPerRun !== null && state.analysisId) {
+    clearTimeout(costDebounceTimer);
+    costDebounceTimer = setTimeout(() => fetchCost(), 300);
+  }
+}
+
+// ============================================================
+// Fetch cost
+// ============================================================
+async function fetchCost() {
+  if (!state.analysisId || state.costPerRun === null) return;
+
+  try {
+    const res = await fetch(`${API_BASE}/analyze-plan/${state.analysisId}/cost`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        costPerRun: state.costPerRun,
+        runsPerMonth: state.runsPerMonth,
+      }),
+    });
+
+    if (res.status === 404) {
+      showError('Analysis expired. Please re-analyze your plan.');
+      return;
+    }
+    if (!res.ok) {
+      const errData = await res.json().catch(() => null);
+      throw new Error(errData?.detail || errData?.message || `Cost computation failed (${res.status})`);
+    }
+
+    const data = await res.json();
+    state.costResult = data;
+    state.hasCostContext = true;
+
+    renderCostOverlay(data);
+
+    // Enable and highlight costs tab
+    const totalSavings = data.summary?.totalMonthlySavings;
+    enableTab('costs', { text: totalSavings ? formatDollars(totalSavings) + '/mo' : 'Ready', green: true });
+  } catch (err) {
+    console.error('Cost endpoint error:', err);
+  }
+}
+
+// ============================================================
+// Render cost overlay
+// ============================================================
+function renderCostOverlay(costData) {
+  const totalSavings = costData.summary?.totalMonthlySavings;
+  const totalCost = costData.summary?.totalMonthlyCost;
+  const findingCount = state.analysisResult?.findings?.length || 0;
+
+  // Update summary
+  const summaryTitle = document.getElementById('summary-title');
+  if (totalSavings != null && totalCost != null) {
+    const pct = totalCost > 0 ? Math.round((totalSavings / totalCost) * 100) : 0;
+    summaryTitle.textContent = `${findingCount} findings, ~${formatDollars(totalSavings)}/mo savings (${pct}%)`;
+  }
+
+  const summaryCost = document.getElementById('summary-cost');
+  const derivedRate = costData.derivedRate;
+  summaryCost.innerHTML = `$${state.costPerRun.toFixed(2)}/run &times; ${state.runsPerMonth}/mo` +
+    (derivedRate != null ? ` &middot; $${derivedRate.toFixed(3)}/GB` : '');
+  summaryCost.classList.add('visible');
+
+  // Update findings tab badge
+  enableTab('findings', { text: findingCount });
+
+  // Per-finding dollars
+  if (costData.findings) {
+    const analysisTitles = (state.analysisResult?.findings || []).map(f => f.title);
+    costData.findings.forEach(cf => {
+      const savings = cf.waterfallSavings != null ? cf.waterfallSavings : cf.monthlySavings;
+      let idx = analysisTitles.indexOf(cf.title);
+      if (idx === -1) idx = analysisTitles.findIndex(t => cf.title && t && cf.title.includes(t.substring(0, 40)));
+
+      if (idx !== -1) {
+        const savingsEl = document.querySelector(`.finding-row-savings[data-finding-index="${idx}"]`);
+        if (savingsEl && savings > 0) {
+          savingsEl.textContent = `~${formatDollars(savings)}/mo`;
+          savingsEl.classList.add('visible');
+        }
+        const calcEl = document.querySelector(`.finding-detail-calc[data-finding-index="${idx}"]`);
+        if (calcEl && cf.calculation) {
+          calcEl.textContent = cf.calculation;
+          calcEl.classList.add('visible');
+        }
+      }
+    });
+  }
+
+  // Render waterfall in costs panel
+  renderWaterfall(costData);
+}
+
+// ============================================================
+// Waterfall
+// ============================================================
+function renderWaterfall(costData) {
+  const container = document.getElementById('waterfall-chart');
+  const totalCost = costData.summary?.totalMonthlyCost;
+  const optimized = costData.summary?.optimizedMonthlyCost;
+
+  if (!totalCost || totalCost <= 0 || !costData.findings?.length) {
+    container.innerHTML = '';
+    return;
+  }
+
+  const sorted = [...costData.findings]
+    .filter(f => (f.waterfallSavings || 0) > 0)
+    .sort((a, b) => (a.waterfallPosition || 99) - (b.waterfallPosition || 99) || (b.waterfallSavings || 0) - (a.waterfallSavings || 0));
+
+  let html = '<div class="waterfall-title">Cost waterfall</div>';
+  html += wfRow('Monthly cost', totalCost, 0, totalCost, 'total', 'cost', '');
+
+  let running = totalCost;
+  sorted.forEach(f => {
+    const s = f.waterfallSavings || 0;
+    if (s <= 0) return;
+    const pct = totalCost > 0 ? Math.round((s / totalCost) * 100) : 0;
+    html += wfRow(shortenTitle(f.title), s, running - s, totalCost, 'savings', 'saving', `-${pct}%`);
+    running -= s;
+  });
+
+  html += '<hr class="waterfall-separator">';
+  const final = optimized != null ? optimized : running;
+  html += wfRow('Optimized', final, 0, totalCost, 'optimized', 'result', '');
+
+  if (costData.planCosts?.length > 1) {
+    html += '<div class="waterfall-plan-header">Per-plan breakdown</div>';
+    costData.planCosts.forEach(pc => {
+      const ps = pc.waterfallSavings || 0;
+      const pct = pc.monthlyCost > 0 ? Math.round((ps / pc.monthlyCost) * 100) : 0;
+      html += `<div class="waterfall-row">
+        <div class="waterfall-label">${escapeHtml(pc.label)}</div>
+        <div class="waterfall-bar-area">
+          <div class="waterfall-bar remaining" style="width:${barPct(pc.optimizedMonthlyCost, totalCost)}%"></div>
+          <div class="waterfall-bar savings" style="left:${barPct(pc.optimizedMonthlyCost, totalCost)}%;width:${barPct(ps, totalCost)}%"></div>
+        </div>
+        <div class="waterfall-amount saving">${ps > 0 ? '-' + formatDollars(ps) : '$0'}</div>
+        <div class="waterfall-pct">${pct > 0 ? pct + '%' : ''}</div>
+      </div>`;
+    });
+  }
+
+  container.innerHTML = html;
+}
+
+function wfRow(label, value, leftOff, max, barCls, amtCls, pctTxt) {
+  const w = barPct(value, max), l = barPct(leftOff, max);
+  const px = amtCls === 'saving' ? '-' : '';
+  return `<div class="waterfall-row ${barCls === 'optimized' ? 'optimized-row' : ''} ${barCls === 'total' ? 'total-row' : ''}">
+    <div class="waterfall-label" title="${escapeHtml(label)}">${escapeHtml(label)}</div>
+    <div class="waterfall-bar-area">
+      ${barCls === 'savings' ? `<div class="waterfall-bar remaining" style="width:${barPct(leftOff, max)}%"></div>` : ''}
+      <div class="waterfall-bar ${barCls}" style="width:${w}%;left:${l}%"></div>
+    </div>
+    <div class="waterfall-amount ${amtCls}">${px}${formatDollars(value)}</div>
+    <div class="waterfall-pct">${pctTxt}</div>
+  </div>`;
+}
+
+function barPct(v, m) { return m > 0 ? Math.max(0, Math.min(100, (v / m) * 100)) : 0; }
+
+function shortenTitle(t) {
+  if (!t) return '';
+  let s = t.replace(/^\[.*?\]\s*/, '');
+  s = s.replace('Missed broadcast: ', 'Broadcast: ');
+  s = s.replace('Unconditional nested loop join: ', 'Cartesian: ');
+  s = s.replace('Partition pruning not applied on ', 'No pruning: ');
+  s = s.replace('Full-table window sort on ', 'Window sort: ');
+  if (s.length > 40) s = s.substring(0, 37) + '...';
+  return s;
+}
+
+// ============================================================
+// Utilities
+// ============================================================
+function formatSize(gb) {
+  if (gb == null || gb < 0) return 'unknown';
+  if (gb >= 1000) return `${(gb / 1000).toFixed(1)} TB`;
+  if (gb >= 1) return `${gb.toFixed(0)} GB`;
+  if (gb >= 0.001) return `${(gb * 1000).toFixed(1)} MB`;
+  return `${(gb * 1000000).toFixed(1)} KB`;
+}
+
+function formatNumber(n) {
+  if (n == null) return '—';
+  return n.toLocaleString('en-US', { maximumFractionDigits: 1 });
+}
+
+function formatDollars(n) {
+  if (n == null) return '$0';
+  if (n >= 10000) return `$${(n / 1000).toFixed(0)}K`;
+  if (n >= 1000) return `$${Math.round(n).toLocaleString()}`;
+  if (n >= 1) return `$${Math.round(n).toLocaleString()}`;
+  if (n > 0) return `$${n.toFixed(2)}`;
+  return '$0';
+}
+
+function escapeHtml(str) {
+  if (!str) return '';
+  const d = document.createElement('div');
+  d.textContent = str;
+  return d.innerHTML;
+}
+
+function showError(msg) {
+  const e = document.getElementById('error-banner');
+  e.textContent = msg;
+  e.classList.add('visible');
+}
+
+// Keyboard shortcut
+document.getElementById('plan-input').addEventListener('keydown', function(e) {
+  if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+    e.preventDefault();
+    analyzePlan();
+  }
+});
+</script>
+
+</body>
+</html>
