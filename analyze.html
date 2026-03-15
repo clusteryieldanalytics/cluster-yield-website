@@ -363,28 +363,48 @@ nav a.nav-link:hover { color: var(--text-bright); }
 }
 
 /* Missing stats */
-.missing-stats {
-  background: var(--amber-dim); border: 1px solid rgba(245,158,11,0.2);
-  border-radius: 8px; padding: 14px 16px; margin-bottom: 16px;
+.missing-stats-banner {
+  background: var(--amber-dim); border: 1px solid rgba(245,158,11,0.25);
+  border-radius: 10px; padding: 20px 24px; margin-bottom: 20px;
 }
-.missing-stats p { font-size: 12px; color: var(--amber); margin-bottom: 8px; line-height: 1.6; }
-.missing-stats-inputs { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
-.missing-stats-field { display: flex; align-items: center; gap: 4px; }
-.missing-stats-field label { font-family: var(--mono); font-size: 11px; color: var(--text); }
-.missing-stats-field input {
-  width: 70px; padding: 4px 8px; border-radius: 6px;
+.missing-stats-banner .ms-icon { font-size: 16px; margin-bottom: 8px; }
+.missing-stats-banner h4 {
+  font-size: 14px; font-weight: 600; color: var(--heading);
+  margin-bottom: 6px;
+}
+.missing-stats-banner p {
+  font-size: 13px; color: var(--text); line-height: 1.65; margin-bottom: 12px;
+}
+.missing-stats-banner .ms-hint {
+  font-size: 11px; color: var(--text-dim); margin-bottom: 14px; line-height: 1.6;
+}
+.missing-stats-banner .ms-hint code {
+  font-family: var(--mono); font-size: 11px; color: var(--accent);
+  background: rgba(59,130,246,0.08); padding: 1px 4px; border-radius: 3px;
+}
+.ms-inputs {
+  display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end;
+}
+.ms-field { display: flex; flex-direction: column; gap: 3px; }
+.ms-field label {
+  font-family: var(--mono); font-size: 11px; color: var(--text-dim);
+}
+.ms-field input {
+  width: 100px; padding: 7px 10px; border-radius: 6px;
   background: var(--bg); border: 1px solid var(--border-light);
-  color: var(--text-bright); font-family: var(--mono); font-size: 11px;
-  outline: none; text-align: right;
+  color: var(--text-bright); font-family: var(--mono); font-size: 13px;
+  outline: none; text-align: right; transition: border-color 0.15s;
 }
-.missing-stats-field .unit { font-size: 11px; color: var(--text-dim); }
+.ms-field input:focus { border-color: var(--accent); }
+.ms-field .ms-unit { font-size: 10px; color: var(--text-dim); text-align: right; }
 .btn-recalc {
-  font-family: var(--mono); font-size: 11px; font-weight: 500;
-  padding: 4px 12px; border-radius: 6px;
-  background: var(--bg-card); border: 1px solid var(--border-light);
-  color: var(--text); cursor: pointer; transition: all 0.15s;
+  font-family: var(--mono); font-size: 13px; font-weight: 500;
+  padding: 8px 18px; border-radius: 6px;
+  background: var(--accent); border: none;
+  color: #fff; cursor: pointer; transition: all 0.15s;
+  align-self: flex-end;
 }
-.btn-recalc:hover { border-color: var(--text-dim); color: var(--text-bright); }
+.btn-recalc:hover { background: var(--accent-dim); }
 
 /* — Panel: Costs — */
 .costs-panel {
@@ -865,8 +885,15 @@ function renderResults() {
 
   // Summary — use server's findingCount which includes both per-plan and cross-plan
   const count = data.summary?.findingCount || (data.findings?.length || 0) + (data.crossPlanFindings?.length || 0);
-  document.getElementById('summary-title').textContent =
-    `${count} optimization ${count === 1 ? 'opportunity' : 'opportunities'} found`;
+  const hasMissingStats = data.missingStats && data.missingStats.length > 0;
+  const summaryEl = document.getElementById('summary-title');
+  if (count > 0) {
+    summaryEl.textContent = `${count} optimization ${count === 1 ? 'opportunity' : 'opportunities'} found`;
+  } else if (hasMissingStats) {
+    summaryEl.textContent = 'Enter table sizes to detect optimizations';
+  } else {
+    summaryEl.textContent = 'No optimization opportunities detected';
+  }
 
   const summaryTables = document.getElementById('summary-tables');
   if (data.plans && data.plans.length > 0) {
@@ -994,22 +1021,32 @@ function renderMissingStats(missingStats) {
   if (!missingStats || missingStats.length === 0) return;
 
   const tableNames = [...new Set(missingStats.map(m => m.tableName))];
+  const findingCount = state.analysisResult?.findings?.length || 0;
+  const hasFindings = findingCount > 0;
+
   const div = document.createElement('div');
-  div.className = 'missing-stats';
+  div.className = 'missing-stats-banner';
   div.innerHTML = `
-    <p>Some tables are missing size statistics. Enter sizes manually:</p>
-    <div class="missing-stats-inputs">
+    <div class="ms-icon">${hasFindings ? '⚠️' : '📊'}</div>
+    <h4>${hasFindings
+      ? 'Some tables are missing size statistics'
+      : 'Table sizes needed to detect optimizations'}</h4>
+    <p>${hasFindings
+      ? 'Enter table sizes below to unlock additional findings and enable cost estimation for all detectors.'
+      : 'This plan doesn\'t include table size statistics, so we can\'t determine which joins could use broadcast or estimate waste volumes. Enter your table sizes to run the full analysis.'}</p>
+    <div class="ms-hint">Permanent fix: run <code>ANALYZE TABLE &lt;table&gt; COMPUTE STATISTICS</code> on your cluster so sizes are embedded in future plans.</div>
+    <div class="ms-inputs">
       ${tableNames.map(name => `
-        <div class="missing-stats-field">
-          <label>${escapeHtml(name.split('.').pop())}:</label>
-          <input type="number" placeholder="0" min="0" step="0.1"
+        <div class="ms-field">
+          <label>${escapeHtml(name.split('.').pop())}</label>
+          <input type="number" placeholder="e.g. 500" min="0" step="0.1"
                  data-table="${escapeHtml(name)}"
                  value="${state.manualTableSizes[name] || ''}"
                  oninput="onManualSizeInput(this)">
-          <span class="unit">GB</span>
+          <div class="ms-unit">GB</div>
         </div>
       `).join('')}
-      <button class="btn-recalc" onclick="reAnalyzeWithSizes()">Re-analyze</button>
+      <button class="btn-recalc" onclick="reAnalyzeWithSizes()">Re-analyze with sizes</button>
     </div>
   `;
   container.appendChild(div);
